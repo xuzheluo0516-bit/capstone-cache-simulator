@@ -2,7 +2,7 @@
 
 F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implementation and Experimentation**
 
-本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已建立仓库与工作清单，尚未编写模拟器。
+本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已建立仓库、上传参考文件并整理工作清单，尚未编写模拟器。
 
 ## 组织与截止时间
 
@@ -52,20 +52,41 @@ F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implement
 
 ## 先通过参考测试
 
-Reference Trace 页面提供：
+参考文件已原样上传至 [data/reference/](data/reference/)：
 
 | 文件 | 用途 |
 | --- | --- |
-| resources.csv | 资源元数据 |
-| requests_reference.csv | 3 个客户端的 15 条请求 |
-| expected_fifo.csv | FIFO 预期结果 |
-| expected_lru.csv | LRU 预期结果 |
-| expected_lfu.csv | LFU 预期结果 |
-| reference_trace_answer_key.md | 命中、未命中、淘汰及性能统计的解释 |
+| [resources.csv](data/reference/resources.csv) | 21 条资源元数据 |
+| [requests_reference.csv](data/reference/requests_reference.csv) | 3 个客户端的 15 条请求 |
+| [expected_fifo.csv](data/reference/expected_fifo.csv) | FIFO 逐请求预期输出 |
+| [expected_lru.csv](data/reference/expected_lru.csv) | LRU 逐请求预期输出 |
+| [expected_lfu.csv](data/reference/expected_lfu.csv) | LFU 逐请求预期输出 |
+| [reference_trace_answer_key.md](data/reference/reference_trace_answer_key.md) | 教授提供的参考解释与统计汇总 |
 
-以 100 KiB 容量、5 ms 命中延迟、空初始缓存运行参考请求；逐条记录命中/未命中、缓存内容及淘汰，并核对总体指标。FIFO、LRU、LFU 均应与参考结果一致，再开展更大规模实验。
+### 输入与输出格式
 
-以上文件已在课程页面确认存在，尚未下载或加入本仓库。
+- 资源 CSV 字段：`scheme,host,path,status_code,content_type,size_bytes,origin_latency_ms,cache_control`。资源由 `(scheme, host, path)` 匹配，大小单位为字节，延迟单位为毫秒。
+- 请求 CSV 字段：`timestamp,client_id,method,scheme,host,path`；参考请求已按时间排列。
+- 预期输出字段：`step,resource_id,client_id,result,evicted,cache_contents_oldest_first,cache_used_KiB,response_ms,cumulative_origin_bytes,cumulative_hits`。
+- 参考输出中的 A–E 对应关系见 answer key 的 Resource legend；输入文件没有独立的 `resource_id` 列。
+- `cache_contents_oldest_first` 始终按**插入先后**排列，不是 LRU/LFU 的淘汰优先级；`evicted` 按实际淘汰顺序列出资源。
+- CSV 中的多项缓存内容、淘汰列表及 Cache-Control 值含有引号包裹的逗号，解析时应使用支持标准 CSV 引号规则的解析器。
+- 虽然资源文件包含 `private, no-store`、`max-age` 和状态码等字段，当前课程核心模拟仍按全部资源可缓存、忽略 Cache-Control 与过期处理。
+
+### 验证步骤
+
+1. 使用 `data/reference/resources.csv` 和 `data/reference/requests_reference.csv`，设置容量为 **102,400 字节**、命中延迟为 **5 ms**，每种策略从空缓存开始。
+2. 分别运行 FIFO、LRU、LFU。标准策略在未命中且资源可放入缓存时应存入资源，并连续淘汰直到空间足够；LFU 的频率在淘汰并重新插入后重置。
+3. 与对应 `expected_*.csv` 逐条核对命中/未命中、淘汰顺序、缓存内容、已用空间、响应时间及累计统计。
+4. 核对下表汇总结果，再进行更大规模实验。
+
+| 策略 | 命中 | 未命中 | 请求命中率 | 源站流量（字节） | 平均响应时间（ms） |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| FIFO | 3 | 12 | 20.00% | 421,888 | 95.33 |
+| LRU | 3 | 12 | 20.00% | 403,456 | 92.33 |
+| LFU | 4 | 11 | 26.67% | 370,688 | 84.33 |
+
+上表根据提供的预期输出汇总，并与 answer key 一致；这是验证目标，尚未运行项目模拟器。
 
 ## 实验要求
 
@@ -123,7 +144,7 @@ Reference Trace 页面提供：
 - [x] 阅读完整项目说明及参考测试说明。
 - [x] 创建私有 GitHub 仓库并整理要求。
 - [ ] 确认 4–5 人小组、分工与开发语言。
-- [ ] 获取参考文件并确认 CSV 字段与输出格式。
+- [x] 获取并上传参考文件，确认 CSV 字段与输出格式。
 - [ ] 实现输入解析、共享缓存状态及 FIFO、LRU、LFU。
 - [ ] 以参考数据验证逐条行为和全部统计指标。
 - [ ] 设计自定义策略并明确优化目标。
