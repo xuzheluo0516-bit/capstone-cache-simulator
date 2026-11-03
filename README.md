@@ -1,2 +1,33 @@
-# capstone-cache-simulator
-F26 Introduction to Computer Science capstone: caching strategy simulation and experimental comparison.
+# Capstone Cache Simulator
+
+F26 Introduction to Computer Science capstone workspace.
+
+## 项目目标（根据目前可见的课程截图）
+
+设计一种缓存策略，明确“表现更好”的评价标准，解释设计决策，并通过实验与传统策略比较。
+
+## 已确认的研究问题
+
+- 更高的缓存命中率是否总意味着更低的网络流量？
+- 平均响应时间最短的策略是否也能使网络流量最小？
+- 总体表现改善时，是否可能让某个客户端的体验变差？
+- 缓存容量增加时，不同策略的相对表现如何变化？
+
+## 建议的起步清单
+
+以下是工作安排建议，完整课程规范核实后再调整。
+
+- [ ] 阅读完整课程说明，确认技术要求、提交材料、评分标准和截止日期。
+- [ ] 阅读 Reference Trace 下的 resources、requests_reference、expected_fifo、expected_lru。
+- [ ] 确认输入、输出格式与模拟规则。
+- [ ] 建立缓存模拟器；以 FIFO、LRU 作为候选基线，并对照参考输出验证。
+- [ ] 定义评价指标：命中率、平均响应时间、网络流量及各客户端表现。
+- [ ] 设计并说明自己的缓存策略。
+- [ ] 在相同请求序列上比较不同策略，并改变缓存容量开展实验。
+- [ ] 整理实验结果、图表、设计解释和局限。
+
+## 状态
+
+仓库已初始化，尚未编写实现。当前仅核实了课程截图中可见的内容；完整 Brightspace 页面需要 NYU 登录，截止日期及最终提交要求尚未确认。
+
+课程页面：[Capstone Project](https://brightspace.nyu.edu/d2l/le/lessons/628915/units/14114575)
