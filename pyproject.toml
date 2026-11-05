@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "capstone-cache-simulator"
+version = "0.1.0"
+description = "Shared web cache simulator for the F26 CS capstone"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -2,7 +2,7 @@
 
 F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implementation and Experimentation**
 
-本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已建立仓库、上传参考文件并整理工作清单，尚未编写模拟器。
+本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已建立仓库、上传参考文件，并完成 M1 的 Python 输入解析与共享缓存引擎基础；缓存策略、指标、CLI 和实验工具仍按后续 issue 实现。
 
 ## 组织与截止时间
 
@@ -87,6 +87,19 @@ F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implement
 | LFU | 4 | 11 | 26.67% | 370,688 | 84.33 |
 
 上表根据提供的预期输出汇总，并与 answer key 一致；这是验证目标，尚未运行项目模拟器。
+
+### 核心模块开发与测试
+
+输入解析和共享缓存引擎位于 `src/cache_simulator/`，契约见
+[docs/input-and-engine-contract.md](docs/input-and-engine-contract.md)。当前测试仅使用
+Python 标准库：
+
+```powershell
+python -m unittest discover -s tests -t . -v
+```
+
+解析器已用参考文件验证资源数为 21、请求数为 15。缓存引擎使用可插拔策略接口；
+FIFO/LRU/LFU、指标汇总和参考输出端到端比较分别由后续 issue 完成。
 
 ## 实验要求
 
