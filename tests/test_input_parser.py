@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from cache_simulator.input_parser import (
@@ -12,6 +14,7 @@ from cache_simulator.input_parser import (
     parse_requests,
     parse_resources,
 )
+from cache_simulator.models import ResourceKey
 
 REFERENCE_DIR = (
     Path(__file__).resolve().parents[1] / "data" / "reference"
@@ -42,6 +45,26 @@ class InputParserReferenceTests(unittest.TestCase):
             ],
             sorted(request.timestamp for request in inputs.requests),
         )
+        with (REFERENCE_DIR / "resources.csv").open(newline="") as handle:
+            for row in csv.DictReader(handle):
+                key = ResourceKey(row["scheme"], row["host"], row["path"])
+                with self.subTest(resource=key):
+                    resource = inputs.resources[key]
+                    self.assertEqual(resource.status_code, int(row["status_code"]))
+                    self.assertEqual(resource.content_type, row["content_type"])
+                    self.assertEqual(resource.size_bytes, int(row["size_bytes"]))
+                    self.assertEqual(resource.origin_latency_ms, float(row["origin_latency_ms"]))
+                    self.assertEqual(resource.cache_control, row["cache_control"])
+        with (REFERENCE_DIR / "requests_reference.csv").open(newline="") as handle:
+            expected = list(csv.DictReader(handle))
+        for step, (request, row) in enumerate(zip(inputs.requests, expected), start=1):
+            with self.subTest(step=step):
+                self.assertEqual(request.timestamp, datetime.fromisoformat(row["timestamp"]))
+                self.assertEqual(request.client_id, row["client_id"])
+                self.assertEqual(request.method, row["method"])
+                self.assertEqual(request.key, ResourceKey(row["scheme"], row["host"], row["path"]))
+                self.assertEqual(request.sequence, step)
+                self.assertEqual(request.source_line, step + 1)
 
 
 class InputParserValidationTests(unittest.TestCase):
@@ -54,7 +77,7 @@ class InputParserValidationTests(unittest.TestCase):
 
     def write(self, name: str, content: str) -> Path:
         path = self.temp_path / name
-        path.write_text(content, encoding="utf-8")
+        path.write_text(content, encoding="utf-8", newline="")
         return path
 
     def resource_csv(self, rows: str) -> Path:
@@ -96,6 +119,68 @@ class InputParserValidationTests(unittest.TestCase):
             ["first", "second", "third"],
         )
         self.assertEqual([request.sequence for request in requests], [1, 2, 3])
+
+    def test_malformed_resource_quotes_report_csv_location(self) -> None:
+        for row in (
+            'https,example.com,"/a"junk,200,text/plain,1,1,public\n',
+            'https,example.com,/a,200,text/plain,1,1,"public',
+        ):
+            with self.subTest(row=row):
+                with self.assertRaisesRegex(
+                    InputValidationError,
+                    r"resources\.csv:2: invalid CSV syntax:",
+                ):
+                    parse_resources(self.resource_csv(row))
+
+    def test_malformed_request_quotes_report_csv_location(self) -> None:
+        resources = parse_resources(self.resource_csv(
+            "https,example.com,/a,200,text/plain,1,1,public\n"
+            "https,example.com,/ajunk,200,text/plain,1,1,public\n"
+        ))
+        for path in ('"/a"junk\n', '"/a'):
+            with self.subTest(path=path):
+                with self.assertRaisesRegex(
+                    InputValidationError,
+                    r"requests\.csv:2: invalid CSV syntax:",
+                ):
+                    parse_requests(self.request_csv(
+                        "2026-10-26T09:00:00Z,c1,GET,https,example.com," + path
+                    ), resources)
+
+    def test_malformed_headers_report_csv_location(self) -> None:
+        for name, fields, parse in (
+            ("resources.csv", RESOURCE_FIELDS, parse_resources),
+            ("requests.csv", REQUEST_FIELDS, lambda path: parse_requests(path, {})),
+        ):
+            for header in ('"' + fields[0] + '"junk,' + ','.join(fields[1:]),
+                           '"' + ','.join(fields)):
+                with self.subTest(name=name, header=header):
+                    with self.assertRaisesRegex(
+                        InputValidationError,
+                        rf"{name}:1: invalid CSV syntax:",
+                    ):
+                        parse(self.write(name, header))
+
+    def test_multiline_csv_error_reports_physical_line(self) -> None:
+        with self.assertRaisesRegex(
+            InputValidationError,
+            r"resources\.csv:3: invalid CSV syntax:",
+        ):
+            parse_resources(self.resource_csv(
+                'https,example.com,/a,200,text/plain,1,1,"public\nunfinished'
+            ))
+
+    def test_escaped_quotes_and_multiline_fields_are_legal(self) -> None:
+        resources = parse_resources(self.resource_csv(
+            'https,example.com,"/a,""b""",200,text/plain,1,1,"public,\nmax-age=60"\n'
+        ))
+        requests = parse_requests(self.request_csv(
+            '2026-10-26T09:00:00Z,c1,GET,https,example.com,"/a,""b"""\n'
+        ), resources)
+        key = next(iter(resources))
+        self.assertEqual(key.path, '/a,"b"')
+        self.assertEqual(resources[key].cache_control, "public,\nmax-age=60")
+        self.assertEqual(requests[0].key, key)
 
     def test_header_only_request_file_is_empty(self) -> None:
         resources_path = self.resource_csv(
@@ -217,6 +302,28 @@ class InputParserValidationTests(unittest.TestCase):
         resource = next(iter(resources.values()))
         self.assertEqual(resource.size_bytes, 0)
         self.assertEqual(resource.origin_latency_ms, 0)
+
+    def test_resource_identity_uses_all_three_key_fields(self) -> None:
+        resources = parse_resources(self.resource_csv(
+            "https,example.com,/a,200,text/plain,1,1,public\n"
+            "http,example.com,/a,200,text/plain,2,2,public\n"
+            "https,other.com,/a,200,text/plain,3,3,public\n"
+            "https,example.com,/b,200,text/plain,4,4,public\n"
+        ))
+        self.assertEqual(len(resources), 4)
+        self.assertEqual(
+            resources[ResourceKey("http", "example.com", "/a")].size_bytes, 2
+        )
+
+    def test_extra_fields_are_rejected_in_both_input_files(self) -> None:
+        with self.assertRaisesRegex(InputValidationError, "resources.csv:2: row has more fields"):
+            parse_resources(self.resource_csv(
+                "https,example.com,/a,200,text/plain,1,1,public,extra\n"
+            ))
+        with self.assertRaisesRegex(InputValidationError, "requests.csv:2: row has more fields"):
+            parse_requests(self.request_csv(
+                "2026-10-26T09:00:00Z,c1,GET,https,example.com,/a,extra\n"
+            ), {})
 
 
 if __name__ == "__main__":

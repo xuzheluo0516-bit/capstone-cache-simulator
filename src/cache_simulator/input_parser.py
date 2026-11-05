@@ -237,7 +237,7 @@ def _read_csv(
 ) -> Iterable[tuple[int, dict[str, str]]]:
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
-            reader = csv.DictReader(handle, restkey="__extra__")
+            reader = csv.DictReader(handle, restkey="__extra__", strict=True)
             if reader.fieldnames is None:
                 if allow_empty:
                     return []
@@ -256,35 +256,36 @@ def _read_csv(
                 )
 
             rows: list[tuple[int, dict[str, str]]] = []
-            try:
-                for row in reader:
-                    line = reader.line_num
-                    if "__extra__" in row:
-                        raise InputValidationError(
-                            "row has more fields than the header",
-                            path=path,
-                            line=line,
-                        )
-                    if any(value is None for value in row.values()):
-                        raise InputValidationError(
-                            "row has fewer fields than the header",
-                            path=path,
-                            line=line,
-                        )
-                    if all(not (row[field] or "").strip() for field in expected_fields):
-                        raise InputValidationError(
-                            "row is empty",
-                            path=path,
-                            line=line,
-                        )
-                    rows.append((line, row))
-            except csv.Error as exc:
-                raise InputValidationError(
-                    f"invalid CSV syntax: {exc}",
-                    path=path,
-                    line=reader.line_num,
-                ) from exc
+            for row in reader:
+                line = reader.line_num
+                if "__extra__" in row:
+                    raise InputValidationError(
+                        "row has more fields than the header",
+                        path=path,
+                        line=line,
+                    )
+                if any(value is None for value in row.values()):
+                    raise InputValidationError(
+                        "row has fewer fields than the header",
+                        path=path,
+                        line=line,
+                    )
+                if all(not (row[field] or "").strip() for field in expected_fields):
+                    raise InputValidationError(
+                        "row is empty",
+                        path=path,
+                        line=line,
+                    )
+                rows.append((line, row))
             return rows
+    except csv.Error as exc:
+        # DictReader.line_num is only updated after a record succeeds. The
+        # underlying reader also tracks the failing header or multiline record.
+        raise InputValidationError(
+            f"invalid CSV syntax: {exc}",
+            path=path,
+            line=reader.reader.line_num,
+        ) from exc
     except FileNotFoundError as exc:
         raise InputValidationError("file does not exist", path=path) from exc
     except UnicodeDecodeError as exc:

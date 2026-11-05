@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from cache_simulator.engine import (
@@ -110,6 +111,7 @@ class SharedCacheEngineTests(unittest.TestCase):
         self.assertFalse(result.hit)
         self.assertEqual(engine.used_bytes, 20)
         self.assertEqual(policy.residents, [item.key])
+        self.assertTrue(engine.process(request("/exact", 2)).hit)
 
     def test_oversized_miss_bypasses_without_eviction(self) -> None:
         small = resource("/small", 30)
@@ -121,6 +123,7 @@ class SharedCacheEngineTests(unittest.TestCase):
             capacity_bytes=100,
         )
         engine.process(request("/small", 1))
+        before_policy = (list(policy.hits), list(policy.insertions), list(policy.evictions))
 
         result = engine.process(request("/huge", 2))
 
@@ -129,6 +132,12 @@ class SharedCacheEngineTests(unittest.TestCase):
         self.assertEqual(engine.cache_contents_oldest_first, (small.key,))
         self.assertEqual(engine.used_bytes, 30)
         self.assertEqual(policy.residents, [small.key])
+        self.assertEqual(result.origin_bytes, 101)
+        self.assertEqual(result.response_ms, huge.origin_latency_ms)
+        self.assertEqual(
+            (policy.hits, policy.insertions, policy.evictions), before_policy
+        )
+        self.assertTrue(engine.process(request("/small", 3)).hit)
 
     def test_evicts_repeatedly_until_new_resource_fits(self) -> None:
         first = resource("/first", 4)
@@ -171,6 +180,9 @@ class SharedCacheEngineTests(unittest.TestCase):
         self.assertEqual(engine.used_bytes, 0)
         self.assertEqual(engine.cache_contents_oldest_first, ())
         self.assertEqual(policy.residents, [])
+        self.assertEqual(policy.hits, [])
+        self.assertEqual(policy.insertions, [])
+        self.assertEqual(policy.evictions, [])
         self.assertEqual(
             engine.process(request("/a", 1)).response_ms,
             31,
@@ -216,6 +228,38 @@ class SharedCacheEngineTests(unittest.TestCase):
 
         with self.assertRaises(PolicyContractError):
             engine.process(request("/second", 2))
+
+    def test_independent_runs_produce_identical_unique_events(self) -> None:
+        items = [resource("/a", 6), resource("/b", 6)]
+        engine = SharedCacheEngine(
+            {item.key: item for item in items}, FrontQueuePolicy(), capacity_bytes=10
+        )
+        requests = (request("/a", 1), request("/a", 2), request("/b", 3))
+        first_run = engine.process_all(requests)
+        self.assertEqual(len(first_run), len(requests))
+        self.assertEqual([event.step for event in first_run], [1, 2, 3])
+        engine.reset()
+        self.assertEqual(engine.process_all(requests), first_run)
+        self.assertEqual(engine.process_all(()), ())
+
+    def test_cache_control_and_expiry_are_ignored(self) -> None:
+        item = replace(resource("/a", 6), cache_control="private, no-store, max-age=0")
+        engine = SharedCacheEngine({item.key: item}, FrontQueuePolicy())
+        miss = engine.process(request("/a", 1))
+        later = replace(request("/a", 2), timestamp=datetime(2027, 1, 1, tzinfo=timezone.utc))
+        self.assertFalse(miss.hit)
+        self.assertTrue(engine.process(later).hit)
+
+    def test_zero_capacity_can_cache_only_zero_byte_resources(self) -> None:
+        empty, nonempty = resource("/empty", 0), resource("/a", 1)
+        engine = SharedCacheEngine(
+            {item.key: item for item in (empty, nonempty)},
+            FrontQueuePolicy(), capacity_bytes=0,
+        )
+        engine.process(request("/empty", 1))
+        self.assertEqual(engine.process(request("/a", 2)).evicted, ())
+        self.assertTrue(engine.process(request("/empty", 3)).hit)
+        self.assertEqual(engine.used_bytes, 0)
 
 
 if __name__ == "__main__":

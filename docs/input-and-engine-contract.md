@@ -6,7 +6,7 @@
 
 - `resources.csv` 必须依次包含 `scheme,host,path,status_code,content_type,size_bytes,origin_latency_ms,cache_control`。
 - 请求 CSV 必须依次包含 `timestamp,client_id,method,scheme,host,path`。
-- CSV 使用 Python 标准库 `csv` 解析，因此引号内的逗号会被视为字段内容。
+- CSV 使用 Python 标准库 `csv` 的严格模式解析，支持引号内的逗号、换行和双引号转义。错误闭合或未闭合的引号（包括表头）抛出 `InputValidationError`，包含文件及解析器发现错误的物理行号。
 - 资源唯一键为 `(scheme, host, path)`。重复键、未知请求资源、非 `GET` 请求、非法大小、延迟和时间戳都会抛出 `InputValidationError`，错误信息包含文件、行号及可用时的资源键。
 - 请求先按时间戳稳定排序，再分配从 1 开始的 `sequence`。时间戳相同的请求保持原文件顺序。
 - `size_bytes` 和容量均使用字节。大小必须是非负整数；延迟必须是非负有限数。
