@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime, timezone
 
@@ -280,13 +281,18 @@ class LFUPolicyTests(unittest.TestCase):
             LFUPolicy(),
             capacity_bytes=2,
         )
-        first = request("/a", 1)
-        second = replace(request("/b", 2), timestamp=first.timestamp)
-        engine.process(first)
-        engine.process(second)
-        engine.process(request("/a", 3))
-        result = engine.process(request("/c", 4))
+        shared_ts = datetime(2026, 11, 8, 9, 0, tzinfo=timezone.utc)
 
+        engine.process(replace(request("/a", 1), timestamp=shared_ts))
+        engine.process(replace(request("/b", 2), timestamp=shared_ts))
+        # Hit both residents at the same timestamp so each reaches frequency 2.
+        # The tie can then only be resolved by the stable request sequence.
+        engine.process(replace(request("/b", 3), timestamp=shared_ts))
+        engine.process(replace(request("/a", 4), timestamp=shared_ts))
+        result = engine.process(replace(request("/c", 5), timestamp=shared_ts))
+
+        # /b was last accessed at step 3 and /a at step 4, so the equal
+        # frequency pair resolves to /b as the least recently accessed.
         self.assertEqual(result.evicted, (key("/b"),))
 
     def test_reset_clears_frequency_state(self) -> None:
