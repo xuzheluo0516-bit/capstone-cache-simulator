@@ -27,6 +27,13 @@ class EvictionPolicy(Protocol):
     def on_insert(self, key: ResourceKey, *, step: int) -> None:
         """Observe a committed insertion."""
 
+    def should_admit(self, resource: Resource, *, step: int) -> bool:
+        """Return whether a miss for ``resource`` may be admitted.
+
+        Standard policies admit every resource that fits by returning True.
+        Policies that omit this method are treated as admitting.
+        """
+
     def select_victim(
         self,
         resident_keys: Sequence[ResourceKey],
@@ -164,7 +171,9 @@ class SharedCacheEngine:
             )
 
         evicted: list[ResourceKey] = []
-        if resource.size_bytes <= self._capacity_bytes:
+        if resource.size_bytes <= self._capacity_bytes and self._is_admitted(
+            resource, step=request.sequence
+        ):
             while self._used_bytes + resource.size_bytes > self._capacity_bytes:
                 victim = self._policy.select_victim(
                     tuple(self._cache),
@@ -204,6 +213,26 @@ class SharedCacheEngine:
         self._used_bytes = 0
         self._processed_steps.clear()
         self._policy.reset()
+
+    def _is_admitted(self, resource: Resource, *, step: int) -> bool:
+        """Return the policy admission decision, defaulting to admit.
+
+        The oversized-resource rule is checked before this method, so a
+        policy is never consulted for a resource that cannot fit. Policies
+        without ``should_admit`` are assumed to admit every resource. A
+        present ``should_admit`` must return a real boolean; any other
+        return type is a policy contract violation rather than being coerced.
+        """
+        should_admit = getattr(self._policy, "should_admit", None)
+        if should_admit is None:
+            return True
+        decision = should_admit(resource, step=step)
+        if not isinstance(decision, bool):
+            raise PolicyContractError(
+                f"policy should_admit must return bool, got "
+                f"{type(decision).__name__} at step {step}"
+            )
+        return decision
 
     def _validate_request(self, request: Request) -> None:
         if not isinstance(request.sequence, int) or request.sequence < 1:
