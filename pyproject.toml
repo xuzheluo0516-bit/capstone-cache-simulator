@@ -8,5 +8,12 @@ version = "0.1.0"
 description = "Shared web cache simulator for the F26 CS capstone"
 requires-python = ">=3.11"
 
+[project.optional-dependencies]
+# Development-only dependency; the simulator itself uses the standard library.
+dev = ["pytest>=8"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

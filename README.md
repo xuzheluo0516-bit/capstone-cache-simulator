@@ -101,6 +101,19 @@ python -m unittest discover -s tests -t . -v
 解析器已用参考文件验证资源数为 21、请求数为 15。缓存引擎使用可插拔策略接口；
 FIFO/LRU/LFU、指标汇总和参考输出端到端比较分别由后续 issue 完成。
 
+### 命令行入口
+
+单次运行通过模块入口执行（参数与错误处理详见 [HOWTO.md](HOWTO.md)）：
+
+```bash
+python -m cache_simulator --resources data/reference/resources.csv \
+  --requests data/reference/requests_reference.csv --capacity 102400 \
+  --hit-latency 5 --policy LFU
+```
+
+`--policy` 支持 `FIFO`、`LRU`、`LFU`；接口契约见
+[docs/interface_v1.md](docs/interface_v1.md)。
+
 ## 实验要求
 
 至少评估三类工作负载：
