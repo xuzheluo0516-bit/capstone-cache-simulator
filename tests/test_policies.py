@@ -5,8 +5,9 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 from cache_simulator.engine import SharedCacheEngine
+from cache_simulator.input_parser import load_inputs
 from cache_simulator.models import Request, Resource, ResourceKey
-from cache_simulator.policies import FIFOPolicy, LRUPolicy
+from cache_simulator.policies import FIFOPolicy, LFUPolicy, LRUPolicy
 
 
 def key(path: str) -> ResourceKey:
@@ -182,6 +183,181 @@ class LRUPolicyTests(unittest.TestCase):
         result = engine.process(request("/c", 4))
 
         self.assertEqual(result.evicted, (key("/b"),))
+
+
+class LFUPolicyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.items = [resource("/a"), resource("/b"), resource("/c")]
+        self.engine = SharedCacheEngine(
+            {item.key: item for item in self.items},
+            LFUPolicy(),
+            capacity_bytes=2,
+        )
+
+    def test_evicts_least_frequently_used(self) -> None:
+        self.engine.process(request("/a", 1))
+        self.engine.process(request("/b", 2))
+        self.engine.process(request("/a", 3))  # /a now has frequency 2.
+        result = self.engine.process(request("/c", 4))
+
+        self.assertEqual(result.evicted, (key("/b"),))
+        self.assertEqual(result.cache_contents_oldest_first, (key("/a"), key("/c")))
+
+    def test_frequency_tie_breaks_by_least_recent_access(self) -> None:
+        self.engine.process(request("/a", 1))
+        self.engine.process(request("/b", 2))
+        result = self.engine.process(request("/c", 3))
+
+        # Both residents have frequency 1; evict the one accessed least recently.
+        self.assertEqual(result.evicted, (key("/a"),))
+        self.assertEqual(result.cache_contents_oldest_first, (key("/b"), key("/c")))
+
+    def test_reinsertion_resets_frequency_to_one(self) -> None:
+        big = resource("/big", 2)
+        engine = SharedCacheEngine(
+            {item.key: item for item in (*self.items, big)},
+            LFUPolicy(),
+            capacity_bytes=2,
+        )
+        engine.process(request("/a", 1))
+        engine.process(request("/b", 2))
+        engine.process(request("/a", 3))
+        engine.process(request("/a", 4))  # /a reaches frequency 3 before eviction.
+        cleared = engine.process(request("/big", 5))
+        self.assertEqual(cleared.evicted, (key("/b"), key("/a")))
+
+        engine.process(request("/a", 6))  # Reinsert /a; frequency must restart at 1.
+        engine.process(request("/b", 7))
+        result = engine.process(request("/c", 8))
+
+        # If /a inherited its old frequency 3, /b would be evicted instead.
+        self.assertEqual(result.evicted, (key("/a"),))
+        self.assertEqual(result.cache_contents_oldest_first, (key("/b"), key("/c")))
+
+    def test_cross_client_accesses_share_frequency(self) -> None:
+        self.engine.process(request("/a", 1, "client-a"))
+        self.engine.process(request("/a", 2, "client-b"))
+        self.engine.process(request("/a", 3, "client-c"))  # Shared /a reaches 3.
+        self.engine.process(request("/b", 4, "client-a"))
+        result = self.engine.process(request("/c", 5, "client-b"))
+
+        self.assertEqual(result.evicted, (key("/b"),))
+        self.assertEqual(result.cache_contents_oldest_first, (key("/a"), key("/c")))
+
+    def test_evicts_multiple_entries_until_resource_fits(self) -> None:
+        large = resource("/large", 3)
+        engine = SharedCacheEngine(
+            {item.key: item for item in (*self.items, large)},
+            LFUPolicy(),
+            capacity_bytes=3,
+        )
+        engine.process(request("/a", 1))
+        engine.process(request("/b", 2))
+        engine.process(request("/c", 3))
+        engine.process(request("/c", 4))  # /c has frequency 2.
+        result = engine.process(request("/large", 5))
+
+        self.assertEqual(result.evicted, (key("/a"), key("/b"), key("/c")))
+        self.assertEqual(result.cache_contents_oldest_first, (key("/large"),))
+
+    def test_hit_updates_frequency_and_access_but_keeps_insertion_order(self) -> None:
+        self.engine.process(request("/a", 1))
+        self.engine.process(request("/b", 2))
+        self.engine.process(request("/b", 3))
+        after_hits = self.engine.process(request("/a", 4))
+
+        # Hits never change the displayed insertion order.
+        self.assertEqual(
+            after_hits.cache_contents_oldest_first, (key("/a"), key("/b"))
+        )
+        result = self.engine.process(request("/c", 5))
+        # Tied at frequency 2; /b was accessed at step 3, /a at step 4.
+        self.assertEqual(result.evicted, (key("/b"),))
+
+    def test_equal_timestamps_use_stable_request_sequence(self) -> None:
+        engine = SharedCacheEngine(
+            {item.key: item for item in self.items},
+            LFUPolicy(),
+            capacity_bytes=2,
+        )
+        first = request("/a", 1)
+        second = replace(request("/b", 2), timestamp=first.timestamp)
+        engine.process(first)
+        engine.process(second)
+        engine.process(request("/a", 3))
+        result = engine.process(request("/c", 4))
+
+        self.assertEqual(result.evicted, (key("/b"),))
+
+    def test_reset_clears_frequency_state(self) -> None:
+        self.engine.process(request("/a", 1))
+        self.engine.process(request("/b", 2))
+        self.engine.process(request("/a", 3))
+
+        self.engine.reset()
+
+        restarted = self.engine.process(request("/a", 1))
+        self.assertEqual(restarted.result, "MISS")
+        self.assertEqual(restarted.cache_contents_oldest_first, (key("/a"),))
+
+    def test_lfu_matches_reference_trace(self) -> None:
+        import csv
+        from pathlib import Path
+
+        reference_dir = (
+            Path(__file__).resolve().parents[1] / "data" / "reference"
+        )
+        inputs = load_inputs(
+            reference_dir / "resources.csv",
+            reference_dir / "requests_reference.csv",
+        )
+        legend = {
+            ResourceKey("https", "learn.university.edu", "/courses/ics/index.html"): "A",
+            ResourceKey("https", "learn.university.edu", "/static/main.css"): "B",
+            ResourceKey("https", "learn.university.edu", "/static/logo.svg"): "C",
+            ResourceKey("https", "cdn.university.edu", "/images/avatar-default.png"): "D",
+            ResourceKey("https", "pypi.org", "/static/css/warehouse.css"): "E",
+        }
+
+        def labels(keys: Sequence[ResourceKey]) -> str:
+            return ",".join(legend[item] for item in keys) or "-"
+
+        engine = SharedCacheEngine(inputs.resources, LFUPolicy())
+        events = engine.process_all(inputs.requests)
+        with (reference_dir / "expected_lfu.csv").open(newline="") as handle:
+            expected = list(csv.DictReader(handle, strict=True))
+
+        self.assertEqual(len(events), len(expected))
+        origin_bytes = hits = 0
+        for event, row in zip(events, expected):
+            origin_bytes += event.origin_bytes
+            hits += event.hit
+            actual = {
+                "step": event.step,
+                "resource_id": legend[event.resource_key],
+                "client_id": event.client_id,
+                "result": event.result,
+                "evicted": labels(event.evicted),
+                "cache_contents_oldest_first": labels(
+                    event.cache_contents_oldest_first
+                ),
+                "cache_used_KiB": event.cache_used_bytes / 1024,
+                "response_ms": event.response_ms,
+                "cumulative_origin_bytes": origin_bytes,
+                "cumulative_hits": hits,
+            }
+            for field, value in actual.items():
+                with self.subTest(step=event.step, field=field):
+                    expected_value = (
+                        float(row[field])
+                        if isinstance(value, (int, float))
+                        else row[field]
+                    )
+                    self.assertEqual(value, expected_value)
+
+        self.assertEqual(hits, 4)
+        self.assertEqual(len(events) - hits, 11)
+        self.assertEqual(origin_bytes, 370688)
 
 
 if __name__ == "__main__":
