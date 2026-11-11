@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .engine import DEFAULT_CAPACITY_BYTES, DEFAULT_HIT_LATENCY_MS, SharedCacheEngine
 from .input_parser import load_inputs
-from .metrics import MetricsAccumulator
+from .metrics import ClientMetrics, MetricsAccumulator
 from .output import OUTPUT_FIELDS, render_events
 from .policies import FIFOPolicy, LFUPolicy, LRUPolicy
 
@@ -40,6 +40,7 @@ class ReferenceReport:
     byte_hit_rate: float | None
     origin_bytes: int
     average_response_ms: float | None
+    per_client: tuple[ClientMetrics, ...]
 
 
 class ReferenceMismatchError(AssertionError):
@@ -138,6 +139,7 @@ def validate_reference_run(
         byte_hit_rate=summary.byte_hit_rate,
         origin_bytes=summary.origin_bytes,
         average_response_ms=summary.average_response_ms,
+        per_client=summary.per_client,
     )
 
 
@@ -184,6 +186,19 @@ def main(argv: list[str] | None = None) -> int:
                 f"request hit rate {hit_rate}, byte hit rate {byte_rate}, "
                 f"origin {report.origin_bytes} B, average {average}"
             )
+            for client in report.per_client:
+                client_rate = (
+                    "N/A" if client.request_hit_rate is None
+                    else f"{client.request_hit_rate * 100:.2f}%"
+                )
+                client_average = (
+                    "N/A" if client.average_response_ms is None
+                    else f"{client.average_response_ms:.2f} ms"
+                )
+                print(
+                    f"  {client.client_id}: {client.hits}/{client.requests} hits "
+                    f"({client_rate}), average {client_average}"
+                )
     except (OSError, ValueError, ReferenceMismatchError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1
