@@ -7,7 +7,7 @@ immutable snapshots and never mutate counters or re-count events.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from collections.abc import Iterable, Mapping
 
 from .engine import RequestResult
 from .models import Resource, ResourceKey
@@ -50,7 +50,7 @@ class MetricsAccumulator:
 
     def __init__(
         self,
-        resources: dict[ResourceKey, Resource] | object,
+        resources: Mapping[ResourceKey, Resource],
         *,
         capacity_bytes: int | None = None,
     ) -> None:
