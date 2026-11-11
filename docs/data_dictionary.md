@@ -149,21 +149,16 @@ Every `RequestResult` is consumed exactly once by the metrics accumulator.
 The engine emits events; it does not own aggregate counters. The output
 serializer is read-only and uses the cumulative values in metric snapshots.
 
-Let:
-- (N) = number of requests;
-- (H) = number of hits; (M) = number of misses;
-- (s_i) = size in bytes of the resource requested at step (i);
-- (h_i = 1) for a hit and 0 otherwise;
-- (t_i) = response time in milliseconds.
-
-Then:
+Let N be the request count, H the hit count, M the miss count,
+s_i the requested resource size in bytes, h_i equal to 1 for a hit (0 for a
+miss), and t_i the response time in milliseconds.
 
 | Metric | Formula |
 | --- | --- |
-| Request hit rate | (H / N) |
-| Byte hit rate | (sum_i h_i s_i / sum_i s_i) |
-| Average response time | (sum_i t_i / N) |
-| Origin traffic | (sum_{i: miss} s_i), in bytes |
+| Request hit rate | H / N |
+| Byte hit rate | sum(h_i × s_i) / sum(s_i) |
+| Average response time | sum(t_i) / N |
+| Origin traffic | sum(s_i for every miss), in bytes |
 
 Repeated requests count repeatedly in the request-byte denominator and
 numerator as appropriate. Oversized-resource misses also contribute their
