@@ -29,6 +29,29 @@ EXPECTED_FILES = {
 INTEGER_FIELDS = {"step", "cumulative_origin_bytes", "cumulative_hits"}
 NUMERIC_FIELDS = {"cache_used_KiB", "response_ms"}
 
+EXPECTED_SUMMARIES = {
+    "FIFO": (3, 12, 20.00, 17.60, 421888, 95.33),
+    "LRU": (3, 12, 20.00, 21.20, 403456, 92.33),
+    "LFU": (4, 11, 26.67, 27.60, 370688, 84.33),
+}
+EXPECTED_CLIENTS = {
+    "FIFO": (
+        ("student-01", 1, 20.00, 111.00),
+        ("student-02", 2, 40.00, 55.00),
+        ("student-03", 0, 0.00, 120.00),
+    ),
+    "LRU": (
+        ("student-01", 2, 40.00, 87.00),
+        ("student-02", 1, 20.00, 70.00),
+        ("student-03", 0, 0.00, 120.00),
+    ),
+    "LFU": (
+        ("student-01", 2, 40.00, 87.00),
+        ("student-02", 1, 20.00, 70.00),
+        ("student-03", 1, 20.00, 96.00),
+    ),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class ReferenceReport:
@@ -140,6 +163,36 @@ def validate_reference_run(
     compare_csv_text(expected_csv, actual_csv, policy=policy_name)
 
     summary = metrics.summary
+    expected_summary = EXPECTED_SUMMARIES[policy_name]
+    actual_summary = (
+        summary.hits,
+        summary.misses,
+        round((summary.request_hit_rate or 0.0) * 100, 2),
+        round((summary.byte_hit_rate or 0.0) * 100, 2),
+        summary.origin_bytes,
+        round(summary.average_response_ms or 0.0, 2),
+    )
+    if actual_summary != expected_summary:
+        raise ReferenceMismatchError(
+            f"{policy_name} summary mismatch: expected {expected_summary!r}, "
+            f"actual {actual_summary!r}"
+        )
+
+    actual_clients = tuple(
+        (
+            client.client_id,
+            client.hits,
+            round((client.request_hit_rate or 0.0) * 100, 2),
+            round(client.average_response_ms or 0.0, 2),
+        )
+        for client in summary.per_client
+    )
+    if actual_clients != EXPECTED_CLIENTS[policy_name]:
+        raise ReferenceMismatchError(
+            f"{policy_name} per-client metrics mismatch: "
+            f"expected {EXPECTED_CLIENTS[policy_name]!r}, actual {actual_clients!r}"
+        )
+
     return ReferenceReport(
         policy=policy_name,
         requests=summary.requests,
