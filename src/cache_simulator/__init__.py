@@ -8,6 +8,8 @@ from .engine import (
     SharedCacheEngine,
 )
 from .input_parser import InputValidationError, SimulationInputs, load_inputs
+from .metrics import ClientMetrics, MetricsAccumulator, MetricsSnapshot, MetricsSummary
+from .output import OUTPUT_FIELDS, render_events
 from .models import Request, Resource, ResourceKey
 from .policies import FIFOPolicy, LFUPolicy, LRUPolicy
 
@@ -19,6 +21,11 @@ __all__ = [
     "LFUPolicy",
     "LRUPolicy",
     "InputValidationError",
+    "ClientMetrics",
+    "MetricsAccumulator",
+    "MetricsSnapshot",
+    "MetricsSummary",
+    "OUTPUT_FIELDS",
     "Request",
     "RequestResult",
     "Resource",
@@ -26,4 +33,5 @@ __all__ = [
     "SharedCacheEngine",
     "SimulationInputs",
     "load_inputs",
+    "render_events",
 ]
