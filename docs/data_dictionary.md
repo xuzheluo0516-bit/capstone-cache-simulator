@@ -186,11 +186,11 @@ Each metric checks its own denominator independently:
 
 For every completed run:
 
-1. (H + M = N).
-2. Sum of per-client request counts equals (N).
-3. Sum of per-client hit counts equals (H).
-4. (	ext{hit bytes} + 	ext{origin bytes} = 	ext{total requested bytes}).
-5. At every event, (0 leq 	ext{cache used bytes} leq 	ext{capacity bytes}).
+1. `hits + misses = requests`.
+2. Sum of per-client request counts equals the global request count.
+3. Sum of per-client hit counts equals the global hit count.
+4. `hit bytes + origin bytes = total requested bytes`.
+5. At every event, `0 <= cache used bytes <= capacity bytes`.
 
 These are tested for repeated requests, unequal client workloads, oversized
 requests, non-integral KiB values, and empty input.
