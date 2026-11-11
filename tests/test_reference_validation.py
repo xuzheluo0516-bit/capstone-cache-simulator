@@ -74,19 +74,12 @@ class ReferenceTraceValidationTests(unittest.TestCase):
         expected = expected_buffer.getvalue()
 
         actual_buffer = io.StringIO(newline="")
-        writer = csv.writer(actual_buffer, lineterminator="\n")
+        writer = csv.writer(actual_buffer, lineterminator="\\n")
         writer.writerow(OUTPUT_FIELDS)
-        writer.writerow(["1.0", "A", "student,01", "MISS", "-", "A,B", "32.0", "5.0", "32768.0", "0.0"])
-        # Integer fields are intentionally integer-only; rewrite their equivalent
-        # numeric spelling to test only decimal-valued columns.
-        actual_buffer.seek(0)
-        actual_rows = list(csv.reader(actual_buffer))
-        actual_rows[1][0] = "1"
-        actual_rows[1][8] = "32768"
-        actual_rows[1][9] = "0"
-        final_buffer = io.StringIO(newline="")
-        csv.writer(final_buffer, lineterminator="\n").writerows(actual_rows)
-        compare_csv_text(expected, final_buffer.getvalue(), policy="TEST")
+        writer.writerow(
+            ["1.0", "A", "student,01", "MISS", "-", "A,B", "32.0", "5.0", "32768.0", "0.0"]
+        )
+        compare_csv_text(expected, actual_buffer.getvalue(), policy="TEST")
 
     def test_comparator_reports_policy_step_and_wrong_field(self) -> None:
         expected = io.StringIO(newline="")
