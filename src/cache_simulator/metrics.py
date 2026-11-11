@@ -54,6 +54,12 @@ class MetricsAccumulator:
         *,
         capacity_bytes: int | None = None,
     ) -> None:
+        if capacity_bytes is not None and (
+            not isinstance(capacity_bytes, int)
+            or isinstance(capacity_bytes, bool)
+            or capacity_bytes < 0
+        ):
+            raise ValueError("capacity_bytes must be a non-negative integer or None")
         self._resources = dict(resources)
         self._capacity_bytes = capacity_bytes
         self._seen_steps: set[int] = set()
