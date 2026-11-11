@@ -226,3 +226,33 @@ The reference run uses 102,400 bytes and 5 ms hit latency. Expected summaries:
 | LFU | 4 / 11 | 26.67% | 370,688 B | 84.33 ms |
 
 Python support: **Python 3.11 or newer**, as declared by `pyproject.toml`.
+
+
+## 7. Reference-derived byte and client metrics
+
+The reference request trace contains 512,000 requested bytes in total. Its
+byte-hit numerator counts every hit's resource size, including repeated hits:
+
+| Policy | Hit bytes | Total request bytes | Byte hit rate |
+| --- | ---: | ---: | ---: |
+| FIFO | 90,112 B | 512,000 B | 17.60% |
+| LRU | 108,544 B | 512,000 B | 21.20% |
+| LFU | 141,312 B | 512,000 B | 27.60% |
+
+Each reference client makes five requests. The following values are calculated
+from the per-request trace (not by averaging the global metrics or the other
+clients' averages):
+
+| Policy | Client | Hits / requests | Request hit rate | Average response |
+| --- | --- | ---: | ---: | ---: |
+| FIFO | student-01 | 1 / 5 | 20.00% | 111.00 ms |
+| FIFO | student-02 | 2 / 5 | 40.00% | 55.00 ms |
+| FIFO | student-03 | 0 / 5 | 0.00% | 120.00 ms |
+| LRU | student-01 | 2 / 5 | 40.00% | 87.00 ms |
+| LRU | student-02 | 1 / 5 | 20.00% | 70.00 ms |
+| LRU | student-03 | 0 / 5 | 0.00% | 120.00 ms |
+| LFU | student-01 | 2 / 5 | 40.00% | 87.00 ms |
+| LFU | student-02 | 1 / 5 | 20.00% | 70.00 ms |
+| LFU | student-03 | 1 / 5 | 20.00% | 96.00 ms |
+
+These additional values are checked by `tests/test_reference_validation.py`.
