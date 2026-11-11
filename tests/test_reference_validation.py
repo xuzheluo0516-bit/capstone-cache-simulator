@@ -74,7 +74,7 @@ class ReferenceTraceValidationTests(unittest.TestCase):
         expected = expected_buffer.getvalue()
 
         actual_buffer = io.StringIO(newline="")
-        writer = csv.writer(actual_buffer, lineterminator="\\n")
+        writer = csv.writer(actual_buffer, lineterminator="\n")
         writer.writerow(OUTPUT_FIELDS)
         writer.writerow(
             ["1.0", "A", "student,01", "MISS", "-", "A,B", "32.0", "5.0", "32768.0", "0.0"]
