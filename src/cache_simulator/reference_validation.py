@@ -72,7 +72,12 @@ class ReferenceMismatchError(AssertionError):
 
 def _read_rows(text: str, *, label: str) -> tuple[list[str], list[dict[str, str]]]:
     try:
-        reader = csv.DictReader(\n            io.StringIO(text, newline=""),\n            restkey="__extra__",\n            restval=None,\n            strict=True,\n        )
+        reader = csv.DictReader(
+            io.StringIO(text, newline=""),
+            restkey="__extra__",
+            restval=None,
+            strict=True,
+        )
         if reader.fieldnames is None:
             raise ReferenceMismatchError(f"{label}: missing CSV header")
         rows = list(reader)
