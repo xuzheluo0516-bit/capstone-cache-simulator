@@ -73,13 +73,13 @@ python -m cache_simulator \
 
 
 
-* 成功时逐请求输出事件并以退出码 `0` 结束。
+* 成功时输出与 `expected_*.csv` 同列名、同顺序的十列 CSV，并以退出码 `0` 结束。
 
 * 参数、文件或解析错误打印信息并以**非零退出码**结束。
 
-* 当前逐事件输出是临时的人类可读视图（`cli.render_events`），B 的 Output/Metrics
+* CLI 把事件交给 `MetricsAccumulator` 累计一次，再将只读快照交给
+  CSV 序列化器；输出模块不重复更新指标。
 
-  模块完成后将在该适配点接入；CLI 本身不计算任何统计指标。
 
 ## 5. 运行测试
 
