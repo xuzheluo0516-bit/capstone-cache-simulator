@@ -86,13 +86,12 @@ def compare_csv_text(expected: str, actual: str, *, policy: str) -> None:
             expected_value = expected_row[field]
             actual_value = actual_row[field]
             try:
-                if field in INTEGER_FIELDS:
-                    matches = int(expected_value) == int(actual_value)
-                elif field in NUMERIC_FIELDS:
+                if field in INTEGER_FIELDS or field in NUMERIC_FIELDS:
+                    # Decimal equality accepts equivalent spellings such as 32 and 32.0.
                     matches = Decimal(expected_value) == Decimal(actual_value)
                 else:
                     matches = expected_value == actual_value
-            except (ValueError, InvalidOperation):
+            except (TypeError, ValueError, InvalidOperation):
                 matches = False
             if not matches:
                 raise ReferenceMismatchError(
