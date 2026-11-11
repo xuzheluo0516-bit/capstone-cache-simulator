@@ -78,11 +78,10 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("invalid choice", err.getvalue())
 
     def test_render_events_uses_documented_columns(self) -> None:
-        text = render_events([])
+        text = render_events([], [])
         self.assertEqual(
-            text.splitlines()[0],
-            "step\tclient_id\tresult\tresponse_ms\torigin_bytes\t"
-            "cache_used_bytes",
+            next(csv.reader(io.StringIO(text, newline=""))),
+            list(OUTPUT_FIELDS),
         )
 
     def test_repeated_calls_are_independent_and_identical(self) -> None:
