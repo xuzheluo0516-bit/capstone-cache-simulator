@@ -91,7 +91,7 @@ python -m unittest discover          # 标准库运行器
 python -m pytest                     # 已安装开发依赖时
 ```
 
-## 6. 输入文件要求
+## 6. 自动参考验证\n\n一次运行 FIFO、LRU、LFU，并逐行逐字段语义比较三个参考输出（不依赖原始 CSV 的引号或换行字节完全相同）：\n\n```bash\npython -m cache_simulator.reference_validation\n```\n\n验证失败会报告策略、请求序号、字段、预期值和实际值，并返回非零退出码。\n\n## 7. 输入文件要求
 
 
 
@@ -111,7 +111,7 @@ python -m pytest                     # 已安装开发依赖时
 
 * 解析或校验失败会报告文件名与行号。
 
-## 7. 参考配置
+## 8. 参考配置
 
 
 
