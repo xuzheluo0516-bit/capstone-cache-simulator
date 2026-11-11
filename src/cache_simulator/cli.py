@@ -16,6 +16,8 @@ from .engine import (
     SharedCacheEngine,
 )
 from .input_parser import InputValidationError, load_inputs
+from .metrics import MetricsAccumulator
+from .output import render_events
 from .policies import FIFOPolicy, LFUPolicy, LRUPolicy
 
 # Maps the public --policy name to a zero-argument policy constructor.
@@ -68,35 +70,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def render_events(results: Sequence[RequestResult]) -> str:
-    """Return a minimal, per-event human-readable view.
-
-    This is the hand-off point for B's Output/Metrics modules. It only echoes
-    facts already present on each event and computes no aggregate statistics.
-    B's formatter is expected to replace this once the output module is ready.
-    """
-    columns = (
-        "step",
-        "client_id",
-        "result",
-        "response_ms",
-        "origin_bytes",
-        "cache_used_bytes",
-    )
-    lines = ["\t".join(columns)]
-    for event in results:
-        values = (
-            event.step,
-            event.client_id,
-            event.result,
-            event.response_ms,
-            event.origin_bytes,
-            event.cache_used_bytes,
-        )
-        lines.append("\t".join(str(value) for value in values))
-    return "\n".join(lines)
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one simulation and return a process exit code."""
     parser = build_parser()
@@ -130,7 +103,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    print(render_events(results))
+    metrics = MetricsAccumulator(simulation.resources, capacity_bytes=args.capacity)
+    snapshots = metrics.consume_all(results)
+    print(render_events(results, snapshots), end="")
     return 0
 
 
