@@ -53,6 +53,11 @@ def _read_rows(text: str, *, label: str) -> tuple[list[str], list[dict[str, str]
         if reader.fieldnames is None:
             raise ReferenceMismatchError(f"{label}: missing CSV header")
         rows = list(reader)
+        for row_number, row in enumerate(rows, start=2):
+            if "__extra__" in row or any(row.get(field) is None for field in reader.fieldnames):
+                raise ReferenceMismatchError(
+                    f"{label}: malformed row {row_number}; field count does not match header"
+                )
     except csv.Error as exc:
         raise ReferenceMismatchError(f"{label}: invalid CSV: {exc}") from exc
     return list(reader.fieldnames), rows
@@ -88,7 +93,13 @@ def compare_csv_text(expected: str, actual: str, *, policy: str) -> None:
             try:
                 if field in INTEGER_FIELDS or field in NUMERIC_FIELDS:
                     # Decimal equality accepts equivalent spellings such as 32 and 32.0.
-                    matches = Decimal(expected_value) == Decimal(actual_value)
+                    expected_number = Decimal(expected_value)
+                    actual_number = Decimal(actual_value)
+                    matches = (
+                        expected_number.is_finite()
+                        and actual_number.is_finite()
+                        and expected_number == actual_number
+                    )
                 else:
                     matches = expected_value == actual_value
             except (TypeError, ValueError, InvalidOperation):
