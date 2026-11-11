@@ -115,12 +115,12 @@ class ReferenceTraceValidationTests(unittest.TestCase):
 
     def test_comparator_rejects_rows_with_missing_or_extra_columns(self) -> None:
         header = ",".join(OUTPUT_FIELDS)
-        missing = header + "\\n" + "1,A,c,HIT,-,A,1,5,0\\n"
-        extra = header + "\\n" + "1,A,c,HIT,-,A,1,5,0,1,unexpected\\n"
+        missing = header + "\n" + "1,A,c,HIT,-,A,1,5,0\n"
+        extra = header + "\n" + "1,A,c,HIT,-,A,1,5,0,1,unexpected\n"
         with self.assertRaisesRegex(ReferenceMismatchError, "malformed row 2"):
-            compare_csv_text(header + "\\n", missing, policy="FIFO")
+            compare_csv_text(header + "\n", missing, policy="FIFO")
         with self.assertRaisesRegex(ReferenceMismatchError, "malformed row 2"):
-            compare_csv_text(header + "\\n", extra, policy="FIFO")
+            compare_csv_text(header + "\n", extra, policy="FIFO")
 
 
 if __name__ == "__main__":
