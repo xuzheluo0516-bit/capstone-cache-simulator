@@ -1,0 +1,228 @@
+# Data dictionary and simulation conventions
+
+This document is the shared contract for the parser (#4), cache engine and
+policies (#5–#7), metrics/output (#8), and reference validation (#9). The
+instructor-provided files in `data/reference/` remain unchanged and are the
+source of the reference trace.
+
+## 1. Input CSV schemas
+
+Both inputs are UTF-8 CSV files. Read them with Python's standard-library
+`csv` module and `newline=""`; do not split lines or fields manually.
+Fields containing commas, quotes, or line breaks must follow standard CSV
+quoting and escaping rules. A quoted comma is part of one field, not a column
+separator. For example, `"public, max-age=300"` is one `cache_control`
+value. A quote inside a quoted field is escaped by doubling it (`""`).
+
+### 1.1 Resource metadata: `resources.csv`
+
+Exactly eight columns, in this order:
+
+| Column | Type / unit | Meaning and validation |
+| --- | --- | --- |
+| `scheme` | non-empty string | URL scheme; part of resource identity |
+| `host` | non-empty string | Host name; part of resource identity |
+| `path` | non-empty string | URL path; part of resource identity |
+| `status_code` | integer | Metadata retained on the Resource object |
+| `content_type` | non-empty string | Metadata retained on the Resource object |
+| `size_bytes` | non-negative integer, bytes | Resource size and accounting unit |
+| `origin_latency_ms` | finite non-negative number, ms | Miss response time |
+| `cache_control` | string | Retained as metadata; ignored by the core simulation |
+
+The unique resource key is the complete tuple
+`(scheme, host, path)`. The three components are compared independently;
+identical paths on different hosts or schemes are different resources.
+Duplicate tuples are invalid. The input has no `resource_id` column.
+
+The parser does not filter resources based on `status_code` or
+`cache_control`. In particular, `private`, `no-store`, `max-age`, and
+non-200 status values do not change admission in this course's offline core
+simulation. Every listed resource is available to the trace; only a request
+that references a listed key is simulated.
+
+### 1.2 Request trace: `requests_reference.csv`
+
+Exactly six columns, in this order:
+
+| Column | Type / unit | Meaning and validation |
+| --- | --- | --- |
+| `timestamp` | ISO-8601 datetime | Request time; reference values end in `Z` (UTC) |
+| `client_id` | non-empty string | Client making the request |
+| `method` | string | Must be exactly `GET` |
+| `scheme` | non-empty string | First component of resource key |
+| `host` | non-empty string | Second component of resource key |
+| `path` | non-empty string | Third component of resource key |
+
+Each request key must exist in the resource dictionary. The parser accepts
+ISO-8601 timestamps; timezone-aware values are normalized by Python's
+`datetime` ordering. A trace must not mix timezone-aware and naive
+timestamps. The supplied reference trace uses the explicit UTC suffix `Z`.
+All requests must use `GET`.
+
+Requests are stably sorted by timestamp. If two timestamps are equal, their
+original file order is preserved. After sorting, the parser assigns a
+one-based, contiguous `sequence` (1, 2, ...). The sequence, not timestamp
+precision, is the definitive tie-breaker for LRU/LFU access order. The parser
+also retains the original physical CSV line as `source_line` for diagnostics.
+
+An out-of-order input is therefore accepted and stably sorted, rather than
+rejected. This behavior is covered by parser tests and is part of the contract.
+
+### 1.3 Validation errors
+
+Malformed headers, missing/extra fields, malformed quoting, empty required
+values, duplicate resource keys, unknown request keys, non-GET methods,
+invalid sizes, invalid/non-finite/negative latencies, and invalid timestamps
+raise `InputValidationError`. Where a row is involved, the message includes
+the source filename and physical line number; resource-specific errors include
+the resource key when available. A request file containing only its correct
+header, or a zero-byte request file, represents an empty trace. A resource
+file must contain its header.
+
+## 2. Resource IDs in output
+
+The reference expected files use short labels A–E. These labels are a
+presentation convention only; they are not input identifiers and must not be
+hard-coded into the cache engine.
+
+| Reference ID | Resource key: `(scheme, host, path)` |
+| --- | --- |
+| A | `(https, learn.university.edu, /courses/ics/index.html)` |
+| B | `(https, learn.university.edu, /static/main.css)` |
+| C | `(https, learn.university.edu, /static/logo.svg)` |
+| D | `(https, cdn.university.edu, /images/avatar-default.png)` |
+| E | `(https, pypi.org, /static/css/warehouse.css)` |
+
+For general traces, output labels are assigned in order of first appearance
+in the request sequence: A, B, ..., Z, AA, AB, ... . The same key always
+keeps the same label within one output. A different trace starts a fresh
+label map. The engine and policies always use the full `ResourceKey`, never
+these display labels, so any number of valid resources is supported.
+
+## 3. Cache and policy semantics
+
+- Capacity and resource sizes are integers measured in **bytes**. The
+  reference capacity is 100 KiB = 102,400 bytes.
+- The cache begins empty and is shared by all clients.
+- A hit uses the configured hit latency (5 ms for the reference run), adds
+  zero origin bytes, and counts as a hit for the requesting client.
+- A miss uses the resource's `origin_latency_ms` and adds the full resource
+  size to origin traffic.
+- A miss for a resource no larger than total capacity must admit it. Evict
+  repeatedly until enough free space exists. A resource larger than total
+  capacity is fetched but not cached; it must not evict existing entries.
+- FIFO hits do not change insertion order. LRU hits update most-recent-access
+  order. LFU starts at frequency 1 on insertion, increments on every hit,
+  breaks equal-frequency ties by least recent access, and removes frequency
+  history on eviction. Reinsertion starts at 1 again.
+- `cache_contents_oldest_first` always displays resident entries in insertion
+  order, even under LRU/LFU. It is not the eviction-priority order.
+  `evicted` lists victims in the exact order the engine evicted them.
+- Cache-Control and expiration are ignored for this core offline exercise.
+
+## 4. Per-request output CSV
+
+The output contains exactly ten columns in this order:
+
+| Column | Type / unit | Definition |
+| --- | --- | --- |
+| `step` | positive integer | Stable one-based request sequence |
+| `resource_id` | string | First-appearance label described in §2 |
+| `client_id` | string | Request's client |
+| `result` | `HIT` or `MISS` | Engine result |
+| `evicted` | string | Comma-separated labels in actual eviction order; `-` if none |
+| `cache_contents_oldest_first` | string | Comma-separated labels in insertion order; `-` if empty |
+| `cache_used_KiB` | number, KiB | `cache_used_bytes / 1024`; retain fractional KiB |
+| `response_ms` | number, ms | Hit latency or resource origin latency |
+| `cumulative_origin_bytes` | non-negative integer, bytes | Sum of miss resource sizes through this step |
+| `cumulative_hits` | non-negative integer | Number of hits through this step |
+
+The serializer uses the standard CSV writer. A list such as `A,B` is one
+field and is quoted by the writer when required by CSV syntax. `-` means an
+empty eviction/cache list; it is not a resource ID. Numeric columns are
+compared numerically, so equivalent forms such as `32` and `32.0` match.
+Valid CSV quoting and CRLF/LF line endings do not affect semantic equality.
+
+## 5. Metrics definitions
+
+Every `RequestResult` is consumed exactly once by the metrics accumulator.
+The engine emits events; it does not own aggregate counters. The output
+serializer is read-only and uses the cumulative values in metric snapshots.
+
+Let:
+- (N) = number of requests;
+- (H) = number of hits; (M) = number of misses;
+- (s_i) = size in bytes of the resource requested at step (i);
+- (h_i = 1) for a hit and 0 otherwise;
+- (t_i) = response time in milliseconds.
+
+Then:
+
+| Metric | Formula |
+| --- | --- |
+| Request hit rate | (H / N) |
+| Byte hit rate | (sum_i h_i s_i / sum_i s_i) |
+| Average response time | (sum_i t_i / N) |
+| Origin traffic | (sum_{i: miss} s_i), in bytes |
+
+Repeated requests count repeatedly in the request-byte denominator and
+numerator as appropriate. Oversized-resource misses also contribute their
+full size to the denominator and to origin traffic. Global average response
+time is calculated over all requests; do not average client averages.
+
+For each client, request hit rate is that client's hits divided by that
+client's request count, and average response time is that client's response
+time sum divided by that client's request count. Client results are reported
+in first-seen client order.
+
+### 5.1 Empty and zero-denominator behavior
+
+Each metric checks its own denominator independently:
+
+- With no requests, request hit rate and average response time are undefined.
+- With zero total requested bytes (for example, a trace of zero-byte
+  resources), byte hit rate is undefined even if requests exist.
+- Undefined ratios/averages are represented as `null` in machine-readable
+  summaries and displayed as `N/A` in human-readable reports. Do not divide
+  by zero.
+- Counts and origin traffic remain valid numeric zeroes for an empty trace.
+
+### 5.2 Invariants
+
+For every completed run:
+
+1. (H + M = N).
+2. Sum of per-client request counts equals (N).
+3. Sum of per-client hit counts equals (H).
+4. (	ext{hit bytes} + 	ext{origin bytes} = 	ext{total requested bytes}).
+5. At every event, (0 leq 	ext{cache used bytes} leq 	ext{capacity bytes}).
+
+These are tested for repeated requests, unequal client workloads, oversized
+requests, non-integral KiB values, and empty input.
+
+## 6. Reference comparison precision
+
+The three expected files are parsed with the standard CSV parser and compared
+by header, row count, and field:
+
+- Text fields (`resource_id`, `client_id`, `result`, `evicted`, and
+  `cache_contents_oldest_first`) must match exactly after CSV decoding.
+- Integer counters/byte fields must match exactly as integers.
+- Other numeric fields are compared as numeric values, not raw strings;
+  `32` and `32.0` are equivalent. Reference per-request times and cache
+  capacity values are exact numeric comparisons.
+- Aggregate averages and percentages are calculated from unrounded totals,
+  then formatted to two decimal places for presentation. Do not round
+  intermediate sums or truncate `cache_used_KiB`.
+- CSV quoting style and CRLF/LF differences are ignored. The expected files
+  themselves are not modified.
+
+The reference run uses 102,400 bytes and 5 ms hit latency. Expected summaries:
+
+| Policy | Hits / misses | Request hit rate | Origin traffic | Average response |
+| --- | ---: | ---: | ---: | ---: |
+| FIFO | 3 / 12 | 20.00% | 421,888 B | 95.33 ms |
+| LRU | 3 / 12 | 20.00% | 403,456 B | 92.33 ms |
+| LFU | 4 / 11 | 26.67% | 370,688 B | 84.33 ms |
+
+Python support: **Python 3.11 or newer**, as declared by `pyproject.toml`.
