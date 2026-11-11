@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import csv
 import io
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from cache_simulator.cli import POLICY_REGISTRY, main, render_events
+from cache_simulator.cli import POLICY_REGISTRY, main
+from cache_simulator.output import OUTPUT_FIELDS, render_events
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DIR = REPO_ROOT / "data" / "reference"
