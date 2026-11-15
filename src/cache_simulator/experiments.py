@@ -21,7 +21,7 @@ from .metrics import MetricsAccumulator
 from .output import render_events
 from .workloads import CAPACITIES_BYTES, DEFAULT_COUNTS, Workload, generate_suite
 
-DEFAULT_POLICIES = ("FIFO", "LRU", "LFU", "CUSTOM")
+DEFAULT_POLICIES = ("FIFO", "LRU", "LFU", "GDSF", "CUSTOM")
 SUMMARY_FIELDS = (
     "workload", "scale", "seed", "capacity_bytes", "capacity_KiB", "policy",
     "requests", "hits", "misses", "request_bytes", "hit_bytes",
