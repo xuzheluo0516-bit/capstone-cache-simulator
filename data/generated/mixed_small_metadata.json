@@ -6,6 +6,7 @@
   "condition_seed": 22261654,
   "generator_command": "python -m cache_simulator.workloads --output-dir data/generated --seed 20261111",
   "kind": "mixed",
+  "mixed_oversized_interval": 100,
   "reference_files_modified": false,
   "request_count": 72,
   "requests_file": "mixed_small_requests.csv",
@@ -27,5 +28,6 @@
   ],
   "resources_file": "mixed_small_resources.csv",
   "scale": "small",
-  "seed": 20261111
+  "seed": 20261111,
+  "sequential_repeat_probability": null
 }
