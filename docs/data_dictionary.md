@@ -251,3 +251,89 @@ clients' averages):
 | LFU | student-03 | 1 / 5 | 20.00% | 96.00 ms |
 
 These additional values are checked by `tests/test_reference_validation.py`.
+
+## 8. Experiment summary CSVs (current E-branch schema; pending final confirmation)
+
+The following two schemas are present in the current batch-experiment scaffold
+(`src/cache_simulator/experiments.py`). They describe the generated CSV
+artifacts, not the final D-produced comparison tables. Recheck these names
+after E's workload changes and D's experiment PR are integrated.
+
+### 8.1 `summary.csv`
+
+One row represents one completed combination of workload, scale, seed,
+capacity, and policy. Current column order:
+
+| Column | Meaning | Unit / convention |
+| --- | --- | --- |
+| `workload` | Workload family | `repeated`, `sequential`, or `mixed` |
+| `scale` | Workload size label | `small`, `medium`, or `large` |
+| `seed` | Top-level workload seed | Integer |
+| `capacity_bytes` | Cache capacity | Bytes; exact integer |
+| `capacity_KiB` | Same capacity for display | KiB; bytes / 1024 |
+| `policy` | Replacement policy | Policy registry name |
+| `requests` | Number of requests processed | Count |
+| `hits` | Cache hits | Count |
+| `misses` | Cache misses | Count |
+| `request_bytes` | Sum of requested resource sizes, counting repeats | Bytes |
+| `hit_bytes` | Sum of sizes for hit requests, counting repeats | Bytes |
+| `origin_bytes` | Sum of sizes fetched on misses | Bytes |
+| `request_hit_rate` | `hits / requests` | Fraction in [0, 1]; null if no requests |
+| `byte_hit_rate` | `hit_bytes / request_bytes` | Fraction in [0, 1]; null if zero request bytes |
+| `average_response_ms` | Mean response time across all requests | Milliseconds; null if no requests |
+| `total_response_ms` | Sum of response times | Milliseconds |
+| `resources_sha256` | Hash of the exact resource input CSV | SHA-256 hex digest |
+| `requests_sha256` | Hash of the exact request input CSV | SHA-256 hex digest |
+| `events_file` | Relative path to the corresponding per-request event CSV | Relative path under the experiment output directory |
+
+The overall mean is request-weighted: total response time divided by total
+request count. Do not average per-client means to obtain a global mean.
+
+### 8.2 `clients.csv`
+
+One row represents one client within one workload, scale, seed, capacity,
+and policy combination. Current column order:
+
+| Column | Meaning | Unit / convention |
+| --- | --- | --- |
+| `workload` | Workload family | `repeated`, `sequential`, or `mixed` |
+| `scale` | Workload size label | `small`, `medium`, or `large` |
+| `seed` | Top-level workload seed | Integer |
+| `capacity_bytes` | Cache capacity | Bytes |
+| `policy` | Replacement policy | Policy registry name |
+| `client_id` | Client identifier | String |
+| `requests` | Requests made by this client | Count |
+| `hits` | Hits for this client | Count |
+| `misses` | Misses for this client | Count |
+| `request_hit_rate` | `hits / requests` for this client | Fraction; null if no requests |
+| `average_response_ms` | Mean response time for this client's requests | Milliseconds; null if no requests |
+
+The current experiment scaffold writes `summary.csv` and `clients.csv`.
+The separate `main_table.csv`, `fairness.csv`, and `per_client.csv`
+schemas are not yet present in this branch and must be documented from D's
+actual output columns after D and E confirm the final names and units. Do not
+infer or rename those schemas from the current two files.
+
+## 9. Aggregate statistics and fairness conventions for experiment reports
+
+For a set of n observations x_1, ..., x_n, the arithmetic mean is
+`sum(x_i) / n`. When reporting the sample standard deviation, use
+
+`s = sqrt(sum((x_i - mean)^2) / (n - 1))`
+
+with denominator n - 1 (not n). The observations and grouping level must be
+stated explicitly; for repeated experimental seeds, first compute the metric
+for each seed under the same workload/capacity/policy condition, then report
+the mean and sample standard deviation across seeds.
+
+For client fairness, Jain's fairness index over non-negative client values
+x_i is
+
+`J = (sum(x_i))^2 / (n * sum(x_i^2))`.
+
+Use the same client-level metric for every client in a comparison (for
+example, each client's request hit rate). If all client values are zero,
+the denominator is zero; the agreed output convention is `nan`, not 0 or 1.
+The precise fairness metric, worst-client definition, and final CSV column
+names must be aligned with D's implementation and the full #13 requirements
+before this appendix is marked complete.
