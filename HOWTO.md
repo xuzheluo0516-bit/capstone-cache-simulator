@@ -69,7 +69,7 @@ python -m cache_simulator \
 | `--requests`    | 路径     | 必填     | 请求 CSV                 |
 | `--capacity`    | 整数（字节） | 102400 | 缓存容量，非负                |
 | `--hit-latency` | 浮点（ms） | 5.0    | 命中延迟，非负                |
-| `--policy`      | 选项     | LRU    | `FIFO` / `LRU` / `LFU` |
+| `--policy`      | 选项     | LRU    | `FIFO` / `LRU` / `LFU` / `GDSF` / `CUSTOM` |
 
 
 
@@ -79,6 +79,21 @@ python -m cache_simulator \
 
 * CLI 把事件交给 `MetricsAccumulator` 累计一次，再将只读快照交给
   CSV 序列化器；输出模块不重复更新指标。
+
+### 4.1 自定义策略用法
+
+`--policy` 现在可取 `FIFO`、`LRU`、`LFU`、`GDSF`、`CUSTOM`：
+
+* `CUSTOM` 是 D 设计的自定义策略 RW-CSF；`GDSF` 是用于对比的基线策略。
+
+* 示例命令：
+
+```
+python -m cache_simulator --resources data/reference/resources.csv \
+  --requests data/reference/requests_reference.csv --policy CUSTOM
+```
+
+策略的设计原理与参数见 README（由 D 提供），本指南不展开。
 
 
 ## 5. 运行测试

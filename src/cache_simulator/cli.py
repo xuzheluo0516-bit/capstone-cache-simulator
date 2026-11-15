@@ -19,12 +19,16 @@ from .input_parser import InputValidationError, load_inputs
 from .metrics import MetricsAccumulator
 from .output import render_events
 from .policies import FIFOPolicy, LFUPolicy, LRUPolicy
+from .gdsf import GDSFPolicy
+from .rwcsf import RWCSFPolicy
 
 # Maps the public --policy name to a zero-argument policy constructor.
 POLICY_REGISTRY: dict[str, Callable[[], EvictionPolicy]] = {
     "FIFO": FIFOPolicy,
     "LRU": LRUPolicy,
     "LFU": LFUPolicy,
+    "CUSTOM": RWCSFPolicy,
+    "GDSF": GDSFPolicy,
 }
 
 DEFAULT_POLICY_NAME = "LRU"
