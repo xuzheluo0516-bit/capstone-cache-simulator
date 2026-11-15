@@ -314,6 +314,44 @@ schemas are not yet present in this branch and must be documented from D's
 actual output columns after D and E confirm the final names and units. Do not
 infer or rename those schemas from the current two files.
 
+
+### 8.3 `manifest.json` and generated-input metadata
+
+The current experiment runner also writes a JSON manifest. Its top-level
+fields record:
+
+| Field | Meaning |
+| --- | --- |
+| `schema_version` | Manifest schema version |
+| `command` | Experiment module entry point |
+| `seed`, `counts` | Top-level seed and request counts by scale |
+| `capacities_bytes`, `capacity_unit` | Exact cache capacities and unit convention |
+| `hit_latency_ms` | Hit latency used for every run |
+| `initial_state` | Cache initialization and warm-up convention |
+| `policies`, `policy_parameters` | Policies and constructor parameters used |
+| `code_version`, `source_sha256` | Git revision when available and source-file digest |
+| `dependency_versions` | Python and installed package versions |
+| `planned_runs`, `completed_runs` | Planned and successfully completed run counts |
+| `runs` | Per-condition records described below |
+| `status` | Overall run status |
+
+Each item in `runs` records `workload`, `scale`, `capacity_bytes`,
+`policy`, relative paths to the resource/request/metadata inputs and event
+output, SHA-256 hashes of both input CSV files, and a `status` value. A
+failed run also records an `error` message. This makes it possible to trace
+a summary row back to its exact input pair and event file.
+
+Each generated workload's metadata JSON currently records its kind, scale,
+top-level and condition seed, request/client/resource counts, active-resource
+count and byte totals, resource-size list, relative input filenames, generator
+command, and whether reference files were modified. These fields describe
+the generated input; they are not performance results.
+
+The exact manifest and metadata schema should be checked again after the
+experiment runner and workload generator are integrated. The current
+scaffold is the source of truth for the fields above.
+
+
 ## 9. Aggregate statistics and fairness conventions for experiment reports
 
 For a set of n observations x_1, ..., x_n, the arithmetic mean is
@@ -332,8 +370,10 @@ x_i is
 `J = (sum(x_i))^2 / (n * sum(x_i^2))`.
 
 Use the same client-level metric for every client in a comparison (for
-example, each client's request hit rate). If all client values are zero,
-the denominator is zero; the agreed output convention is `nan`, not 0 or 1.
-The precise fairness metric, worst-client definition, and final CSV column
-names must be aligned with D's implementation and the full #13 requirements
-before this appendix is marked complete.
+example, each client's request hit rate). If all client values are zero, the denominator is zero and the index is
+undefined. Use the explicit missing-value convention confirmed by the team
+and D's output implementation (for example, N/A in a report); do not silently
+replace an undefined value with 0 or 1. The precise fairness metric,
+worst-client definition, and final CSV column names must be aligned with D's
+implementation and the full #13 requirements before this appendix is marked
+complete.
