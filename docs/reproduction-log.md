@@ -94,6 +94,24 @@ HOWTO 声明 `>= 3.11`，CI 跑 3.11/3.12/3.13，团队本机是 3.14.x。C4 无
 - #13 的可视化与公平性脚本尚未合并，绘图命令（#14 第 5 条）本轮无法执行。
 - 正式五种子结果依赖 D 的实验 PR，本轮只用种子 `20261111` 验证流程可跑通。
 
-## 6. 结论
+## 6. C1 预检：比较器自测是否齐全
+
+C1 要求在合并后的基线上确认「比较器自测齐全」。合并树上 `tests/test_reference_validation.py` 的 9 个用例覆盖情况如下，全部通过：
+
+| 用例 | 覆盖点 |
+| --- | --- |
+| `test_all_standard_policies_match_every_reference_field` | 三策略 × 15 请求 × 10 字段与参考 CSV 逐字段一致 |
+| `test_per_client_reference_metrics_are_correct` | 逐客户端命中率与平均响应时间 |
+| `test_comparator_accepts_each_expected_file_as_actual` | 三份 expected 互为实际值时不误报 |
+| `test_comparator_ignores_line_endings_quoting_and_numeric_spelling` | CRLF/LF、合法引号、`32` 与 `32.0` 不误报 |
+| `test_comparator_detects_reordered_fifo_lists` | 淘汰顺序/缓存插入顺序被颠倒时能报错 |
+| `test_comparator_reports_policy_step_and_wrong_field` | 报错信息给出策略、请求序号、字段 |
+| `test_comparator_detects_eviction_and_cumulative_counter_mismatch` | 累计值被改错时能报错 |
+| `test_comparator_checks_header_order_and_row_count` | 表头顺序与行数 |
+| `test_comparator_rejects_rows_with_missing_or_extra_columns` | 缺列/多列 |
+
+结论：比较器自测齐全，C1 中「确认比较器自测齐全」一项在合并后可直接复跑确认。但 C1 的另一个前提（「合并后在基线上运行」并勾选 #6/#7/#9 验收）仍取决于 A 先合并 PR #18 与 `feature/9-reference-acceptance`，本轮 `main` 上还没有这些代码，因此三个 issue 未关闭。
+
+## 7. 结论
 
 在 Windows 11 + Python 3.14.6 的全新 venv 中，按当前 HOWTO 可以完成安装、参考对账（三策略逐字段一致、退出码 0）、CLI 与批量跑批（225/225 次成功，约 4 s），说明工程链路本身是可复现的。除 P1 的换行问题外没有出现运行错误；P2–P6 属于文档与元数据规范化问题，不影响数值结果。定稿 HOWTO 后请按本文第 3 节重新执行一次，并把 P1–P3 的修复结果补进本文件。
