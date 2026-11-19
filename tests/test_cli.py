@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import csv
 import io
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from cache_simulator.cli import POLICY_REGISTRY, main, render_events
+from cache_simulator.cli import POLICY_REGISTRY, main
+from cache_simulator.output import OUTPUT_FIELDS, render_events
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DIR = REPO_ROOT / "data" / "reference"
@@ -76,11 +78,10 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("invalid choice", err.getvalue())
 
     def test_render_events_uses_documented_columns(self) -> None:
-        text = render_events([])
+        text = render_events([], [])
         self.assertEqual(
-            text.splitlines()[0],
-            "step\tclient_id\tresult\tresponse_ms\torigin_bytes\t"
-            "cache_used_bytes",
+            next(csv.reader(io.StringIO(text, newline=""))),
+            list(OUTPUT_FIELDS),
         )
 
     def test_repeated_calls_are_independent_and_identical(self) -> None:

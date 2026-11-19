@@ -17,3 +17,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[project.scripts]
+cache-sim = "cache_simulator.cli:main"
+cache-sim-validate-reference = "cache_simulator.reference_validation:main"

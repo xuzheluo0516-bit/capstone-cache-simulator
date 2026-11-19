@@ -30,19 +30,20 @@ python -m pip install -e ".[dev]"   # 额外安装 pytest 等开发工具
 
 ## 3. 项目结构
 
-
-
 ```
 src/cache_simulator/
-├── models.py        # ResourceKey / Resource / Request
-├── engine.py        # EvictionPolicy、RequestResult、SharedCacheEngine
-├── policies.py      # FIFO / LRU / LFU
-├── input_parser.py  # CSV 解析与校验
-├── cli.py           # 命令行入口与策略注册表
-└── __main__.py      # 支持 python -m cache_simulator
-tests/               # 全部单元测试（unittest 风格，pytest 可直接运行）
-data/reference/      # 参考输入与 expected 输出
-docs/                # 接口契约与数据字典
+├── models.py                # ResourceKey / Resource / Request
+├── engine.py                # SharedCacheEngine and RequestResult events
+├── policies.py              # FIFO / LRU / LFU
+├── input_parser.py          # CSV parsing and validation
+├── metrics.py               # Global and per-client metrics
+├── output.py                # Ten-column CSV serialization
+├── reference_validation.py  # Semantic expected-output comparator
+├── cli.py                   # Command-line entry point
+└── __main__.py              # Supports python -m cache_simulator
+tests/                       # unittest suite
+data/reference/              # Reference inputs and expected outputs
+docs/                        # Interface contract and data dictionary
 ```
 
 ## 4. 运行模拟（CLI）
@@ -72,13 +73,13 @@ python -m cache_simulator \
 
 
 
-* 成功时逐请求输出事件并以退出码 `0` 结束。
+* 成功时输出与 `expected_*.csv` 同列名、同顺序的十列 CSV，并以退出码 `0` 结束。
 
 * 参数、文件或解析错误打印信息并以**非零退出码**结束。
 
-* 当前逐事件输出是临时的人类可读视图（`cli.render_events`），B 的 Output/Metrics
+* CLI 把事件交给 `MetricsAccumulator` 累计一次，再将只读快照交给
+  CSV 序列化器；输出模块不重复更新指标。
 
-  模块完成后将在该适配点接入；CLI 本身不计算任何统计指标。
 
 ## 5. 运行测试
 
@@ -91,7 +92,18 @@ python -m unittest discover          # 标准库运行器
 python -m pytest                     # 已安装开发依赖时
 ```
 
-## 6. 输入文件要求
+## 6. 自动参考验证
+
+一次运行 FIFO、LRU、LFU，并逐行逐字段语义比较三个参考输出（不依赖
+CSV 原始引号或换行字节完全相同）：
+
+```bash
+python -m cache_simulator.reference_validation
+```
+
+验证失败会报告策略、请求序号、字段、预期值和实际值，并返回非零退出码。
+
+## 7. 输入文件要求
 
 
 
@@ -111,7 +123,7 @@ python -m pytest                     # 已安装开发依赖时
 
 * 解析或校验失败会报告文件名与行号。
 
-## 7. 参考配置
+## 8. 参考配置
 
 
 
