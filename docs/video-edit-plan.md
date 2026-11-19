@@ -49,9 +49,10 @@ same directory so the editor can cut against the intended wording.
 3. Add lower-third for each speaker: name, and their contribution in one line.
 4. Add chapter markers or a short agenda card at 0:00 so a viewer can jump to
    2:00 / 4:00 / 6:00 / 8:00.
-5. Check that the numbers spoken on camera match the report and `results/`:
-   the reference values (FIFO 3 hits, LRU 3, LFU 4; 95.33 / 92.33 / 84.33 ms)
-   and any custom-policy result quoted by D or E.
+5. Check that the numbers spoken on camera match the report and the archived
+   experiment outputs under `data/experiments/<seed>/` (`summary.csv`,
+   `clients.csv`, `events/`): the reference values (FIFO 3 hits, LRU 3, LFU 4;
+   95.33 / 92.33 / 84.33 ms) and any custom-policy result quoted by D or E.
 6. Trim to exactly 10:00 or slightly under; verify total duration, not the sum
    of the raw clips.
 7. Audio pass: consistent loudness, no clicks, no long silences over 1.5 s.

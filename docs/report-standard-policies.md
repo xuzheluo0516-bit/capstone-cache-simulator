@@ -50,6 +50,10 @@ differences are too small to rank the policies, so they are used here to prove
 semantic correctness, and the ranking argument is made on the generated
 workloads in Section 6.
 
-Supporting detail, including the eviction order at each step and two
-hand-computed sequences that the custom policy can reuse, is in
-[standard-policy-validation.md](standard-policy-validation.md).
+Supporting evidence: the expected per-step reference outputs, including the
+cache contents and eviction order at each request, are in `data/reference/`,
+and the validator recomputes them field by field. The mixed-workload eviction
+sequence is recorded in
+[mixed-workload-competition.md](mixed-workload-competition.md); the
+clean-environment reproduction steps are in
+[reproduction-log.md](reproduction-log.md).
