@@ -7,6 +7,7 @@ from pathlib import Path
 
 from cache_simulator.output import OUTPUT_FIELDS
 from cache_simulator.reference_validation import (
+    EXPECTED_FILES,
     ReferenceMismatchError,
     compare_csv_text,
     validate_reference_run,
@@ -66,11 +67,18 @@ class ReferenceTraceValidationTests(unittest.TestCase):
                 ]
                 self.assertEqual(actual, expected_clients)
 
+    def test_comparator_accepts_each_expected_file_as_actual(self) -> None:
+        for policy, filename in EXPECTED_FILES.items():
+            with self.subTest(policy=policy):
+                expected = (REFERENCE_DIR / filename).read_bytes().decode("utf-8-sig")
+                compare_csv_text(expected, expected, policy=policy)
+
     def test_comparator_ignores_line_endings_quoting_and_numeric_spelling(self) -> None:
         row = ["1", "A", "student,01", "MISS", "-", "A,B", "32", "5", "32768", "0"]
         expected_buffer = io.StringIO(newline="")
-        csv.writer(expected_buffer, lineterminator="\r\n").writerow(OUTPUT_FIELDS)
-        csv.writer(expected_buffer, lineterminator="\r\n").writerow(row)
+        writer = csv.writer(expected_buffer, lineterminator="\r\n", quoting=csv.QUOTE_ALL)
+        writer.writerow(OUTPUT_FIELDS)
+        writer.writerow(row)
         expected = expected_buffer.getvalue()
 
         actual_buffer = io.StringIO(newline="")
@@ -80,6 +88,27 @@ class ReferenceTraceValidationTests(unittest.TestCase):
             ["1.0", "A", "student,01", "MISS", "-", "A,B", "32.0", "5.0", "32768.0", "0.0"]
         )
         compare_csv_text(expected, actual_buffer.getvalue(), policy="TEST")
+
+    def test_comparator_detects_reordered_fifo_lists(self) -> None:
+        expected = (REFERENCE_DIR / EXPECTED_FILES["FIFO"]).read_text(encoding="utf-8-sig")
+        for field, original, reordered in (
+            ("evicted", "C,D", "D,C"),
+            ("cache_contents_oldest_first", "A,E", "E,A"),
+        ):
+            with self.subTest(field=field):
+                rows = list(csv.DictReader(io.StringIO(expected, newline="")))
+                step_nine = next(row for row in rows if row["step"] == "9")
+                self.assertEqual(step_nine[field], original)
+                step_nine[field] = reordered
+                actual = io.StringIO(newline="")
+                writer = csv.DictWriter(actual, fieldnames=OUTPUT_FIELDS)
+                writer.writeheader()
+                writer.writerows(rows)
+                with self.assertRaisesRegex(
+                    ReferenceMismatchError,
+                    rf"FIFO step 9 field {field}: expected '{original}', actual '{reordered}'",
+                ):
+                    compare_csv_text(expected, actual.getvalue(), policy="FIFO")
 
     def test_comparator_reports_policy_step_and_wrong_field(self) -> None:
         expected = io.StringIO(newline="")

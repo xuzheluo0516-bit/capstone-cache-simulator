@@ -28,6 +28,7 @@ EXPECTED_FILES = {
 }
 INTEGER_FIELDS = {"step", "cumulative_origin_bytes", "cumulative_hits"}
 NUMERIC_FIELDS = {"cache_used_KiB", "response_ms"}
+ORDERED_LIST_FIELDS = {"evicted", "cache_contents_oldest_first"}
 
 EXPECTED_SUMMARIES = {
     "FIFO": (3, 12, 20.00, 17.60, 421888, 95.33),
@@ -91,6 +92,10 @@ def _read_rows(text: str, *, label: str) -> tuple[list[str], list[dict[str, str]
     return list(reader.fieldnames), rows
 
 
+def _parse_ordered_list(value: str) -> tuple[str, ...]:
+    return () if value == "-" else tuple(value.split(","))
+
+
 def compare_csv_text(expected: str, actual: str, *, policy: str) -> None:
     """Compare decoded CSV values, ignoring quoting and newline conventions."""
     expected_header, expected_rows = _read_rows(expected, label=f"{policy} expected")
@@ -127,6 +132,10 @@ def compare_csv_text(expected: str, actual: str, *, policy: str) -> None:
                         expected_number.is_finite()
                         and actual_number.is_finite()
                         and expected_number == actual_number
+                    )
+                elif field in ORDERED_LIST_FIELDS:
+                    matches = _parse_ordered_list(expected_value) == _parse_ordered_list(
+                        actual_value
                     )
                 else:
                     matches = expected_value == actual_value
