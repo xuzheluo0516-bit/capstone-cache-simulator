@@ -116,6 +116,8 @@ python -m cache_simulator --resources data/reference/resources.csv \
 
 ## 实验要求
 
+可复现工作负载、容量档位及跑批命令见 [实验说明](docs/experiments.md) 和 [HOWTO](HOWTO.md)。
+
 至少评估三类工作负载：
 
 1. 重复型：反复请求一小组资源。

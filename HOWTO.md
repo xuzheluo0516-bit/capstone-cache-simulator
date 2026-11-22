@@ -145,3 +145,25 @@ python -m cache_simulator.reference_validation
 * 容量 `102400` 字节（100 KiB）、命中延迟 `5` ms、初始缓存为空。
 
 * 每次独立运行都新建引擎与策略，不继承上一轮的缓存或策略状态。
+
+## 9. 可复现实验输入与跑批
+
+生成三类负载、每类三个规模的 CSV（会用项目解析器校验）：
+
+```bash
+python -m cache_simulator.workloads --output-dir data/generated --seed 20261111
+```
+
+当前功能分支仅有 FIFO、LRU、LFU。可先用三策略执行 9 组输入 × 5 档容量 × 3 策略的框架试跑：
+
+```bash
+python -m cache_simulator.experiments --output-dir data/experiments/three-policy-smoke --seed 20261111 --policies FIFO LRU LFU
+```
+
+第四种策略注册为 `CUSTOM` 且 #9 的参考验证通过后，默认命令会运行四策略：
+
+```bash
+python -m cache_simulator.experiments --output-dir data/experiments/full --seed 20261111
+```
+
+当前若直接执行默认命令，会明确报错 `policy not registered: CUSTOM`，不产生伪四策略结果。容量参数 `--capacities-bytes` 使用精确字节数；默认档位及数据设计见 [实验说明](docs/experiments.md)。`summary.csv`、`clients.csv`、每次运行的 `events/*.csv` 与 `manifest.json` 可用于审计；`data/reference/` 不会被修改。
