@@ -1,4 +1,4 @@
-"""Deterministic, parser-compatible traces for the three experiment workloads."""
+"""Deterministic, parser-compatible traces for experiment workloads."""
 
 from __future__ import annotations
 
@@ -14,6 +14,9 @@ from .input_parser import REQUEST_FIELDS, RESOURCE_FIELDS, load_inputs
 
 DEFAULT_COUNTS = {"small": 72, "medium": 360, "large": 1440}
 KINDS = ("repeated", "sequential", "mixed")
+ALL_KINDS = (*KINDS, "loop")
+SEQUENTIAL_REPEAT_PROBABILITY = 0.125
+MIXED_OVERSIZED_INTERVAL = 100
 START = datetime(2026, 11, 1, tzinfo=timezone.utc)
 HOST = "experiment.example.invalid"
 SIZES_KIB = (8, 12, 16, 20, 24, 32, 40, 48, 64, 96, 128, 384)
@@ -31,7 +34,7 @@ class Workload:
     metadata_path: Path
 
 
-def _catalog() -> list[dict[str, str]]:
+def _catalog(*, sequential_pool_size: int = 0) -> list[dict[str, str]]:
     rows = []
     for index, size_kib in enumerate(SIZES_KIB):
         rows.append({
@@ -48,6 +51,18 @@ def _catalog() -> list[dict[str, str]]:
         "size_bytes": str(44 * 1024 * 1024), "origin_latency_ms": "1500",
         "cache_control": "public, max-age=3600",
     })
+    # Append new URLs after catalog[12], which the mixed trace uses as the
+    # oversized video. This keeps every existing repeated/mixed index stable.
+    extra_sizes_kib = (16, 24, 32, 48, 64, 96, 128, 192, 256)
+    for offset in range(sequential_pool_size):
+        rows.append({
+            "scheme": "https", "host": HOST,
+            "path": f"/sequential/{offset:04d}",
+            "status_code": "200", "content_type": "application/octet-stream",
+            "size_bytes": str(extra_sizes_kib[offset % len(extra_sizes_kib)] * 1024),
+            "origin_latency_ms": str(55 + offset % 31 * 7),
+            "cache_control": "public, max-age=3600",
+        })
     return rows
 
 
@@ -75,7 +90,24 @@ def _trace(kind: str, count: int, rng: random.Random, catalog: list[dict[str, st
             resource = catalog[rng.randrange(4 if rng.random() < 0.85 else 12)]
             rows.append(_request(index, "repeat-reader", resource))
     elif kind == "sequential":
-        # Each 12-request pass visits every distinct cacheable object once.
+        # Mostly first visits from a pool large enough for this trace. Randomly
+        # place about 12.5% revisits so even short traces keep that intended
+        # rate; each revisit draws from prior first visits.
+        fresh = list(range(13, len(catalog)))
+        rng.shuffle(fresh)
+        repeat_positions = set(rng.sample(range(1, count), round(count * SEQUENTIAL_REPEAT_PROBABILITY)))
+        seen: list[int] = []
+        for index in range(count):
+            if index in repeat_positions:
+                resource_index = rng.choice(seen)
+            else:
+                if not fresh:
+                    raise ValueError("sequential resource pool exhausted")
+                resource_index = fresh.pop()
+                seen.append(resource_index)
+            rows.append(_request(index, "sequential-reader", catalog[resource_index]))
+    elif kind == "loop":
+        # Keep the previous 12-object loop as an optional worst-case trace.
         for index in range(count):
             rows.append(_request(index, "sequential-reader", catalog[index % 12]))
     elif kind == "mixed":
@@ -87,7 +119,7 @@ def _trace(kind: str, count: int, rng: random.Random, catalog: list[dict[str, st
         for index in range(count):
             if index < len(prefix):
                 client, resource_index = prefix[index]
-            elif index % 17 == 0:
+            elif index % MIXED_OVERSIZED_INTERVAL == 0:
                 client, resource_index = "media", 12
             else:
                 client = ("browser", "media", "random")[index % 3]
@@ -108,22 +140,27 @@ def generate_suite(
     *,
     seed: int,
     counts: dict[str, int] | None = None,
+    kinds: tuple[str, ...] = KINDS,
 ) -> tuple[Workload, ...]:
     """Generate all kinds and sizes; validate every output with the real parser."""
     counts = dict(DEFAULT_COUNTS if counts is None else counts)
     if not counts or any(not name or count < 24 for name, count in counts.items()):
         raise ValueError("counts must map scale names to at least 24 requests")
+    if not kinds or len(set(kinds)) != len(kinds) or any(kind not in ALL_KINDS for kind in kinds):
+        raise ValueError(f"kinds must be distinct names from {ALL_KINDS}")
     output_dir.mkdir(parents=True, exist_ok=True)
-    catalog = _catalog()
     result = []
-    for kind in KINDS:
+    for kind in kinds:
         for scale, count in counts.items():
+            # Every sequential trace has at least 60 possible fresh URLs and
+            # enough unused URLs for all requests, even at the largest scale.
+            catalog = _catalog(sequential_pool_size=max(60, count) if kind == "sequential" else 0)
             stem = f"{kind}_{scale}"
             resources_path = output_dir / f"{stem}_resources.csv"
             requests_path = output_dir / f"{stem}_requests.csv"
             metadata_path = output_dir / f"{stem}_metadata.json"
             # Independent stream per condition, unaffected by other scale order.
-            condition_seed = seed + KINDS.index(kind) * 1_000_003 + sum(ord(c) for c in scale)
+            condition_seed = seed + ALL_KINDS.index(kind) * 1_000_003 + sum(ord(c) for c in scale)
             rows = _trace(kind, count, random.Random(condition_seed), catalog)
             _write_csv(resources_path, RESOURCE_FIELDS, catalog)
             _write_csv(requests_path, REQUEST_FIELDS, rows)
@@ -144,11 +181,18 @@ def generate_suite(
                     if int(row["size_bytes"]) <= 1024 * 1024
                 ),
                 "resource_sizes_bytes": [int(row["size_bytes"]) for row in catalog],
+                "sequential_repeat_probability": (
+                    SEQUENTIAL_REPEAT_PROBABILITY if kind == "sequential" else None
+                ),
+                "mixed_oversized_interval": (
+                    MIXED_OVERSIZED_INTERVAL if kind == "mixed" else None
+                ),
                 "resources_file": resources_path.name,
                 "requests_file": requests_path.name,
                 "generator_command": (
                     "python -m cache_simulator.workloads --output-dir "
                     f"{output_dir} --seed {seed}"
+                    + (" --include-loop" if "loop" in kinds else "")
                 ),
                 "reference_files_modified": False,
             }
@@ -164,8 +208,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=Path("data/generated"))
     parser.add_argument("--seed", type=int, default=20261111)
+    parser.add_argument("--include-loop", action="store_true", help="Also generate the optional 12-object loop trace")
     args = parser.parse_args()
-    workloads = generate_suite(args.output_dir, seed=args.seed)
+    workloads = generate_suite(
+        args.output_dir, seed=args.seed,
+        kinds=ALL_KINDS if args.include_loop else KINDS,
+    )
     print(f"Generated and parser-validated {len(workloads)} workloads in {args.output_dir}")
     return 0
 

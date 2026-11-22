@@ -16,7 +16,7 @@ timestamp,client_id,method,scheme,host,path
 2026-11-01T00:00:14Z,random,GET,https,experiment.example.invalid,/object/08
 2026-11-01T00:00:15Z,browser,GET,https,experiment.example.invalid,/object/00
 2026-11-01T00:00:16Z,media,GET,https,experiment.example.invalid,/object/11
-2026-11-01T00:00:17Z,media,GET,https,experiment.example.invalid,/video/oversized.mp4
+2026-11-01T00:00:17Z,random,GET,https,experiment.example.invalid,/object/11
 2026-11-01T00:00:18Z,browser,GET,https,experiment.example.invalid,/object/01
 2026-11-01T00:00:19Z,media,GET,https,experiment.example.invalid,/object/11
 2026-11-01T00:00:20Z,random,GET,https,experiment.example.invalid,/object/09
@@ -33,8 +33,8 @@ timestamp,client_id,method,scheme,host,path
 2026-11-01T00:00:31Z,media,GET,https,experiment.example.invalid,/object/11
 2026-11-01T00:00:32Z,random,GET,https,experiment.example.invalid,/object/05
 2026-11-01T00:00:33Z,browser,GET,https,experiment.example.invalid,/object/01
-2026-11-01T00:00:34Z,media,GET,https,experiment.example.invalid,/video/oversized.mp4
-2026-11-01T00:00:35Z,random,GET,https,experiment.example.invalid,/object/02
+2026-11-01T00:00:34Z,media,GET,https,experiment.example.invalid,/object/10
+2026-11-01T00:00:35Z,random,GET,https,experiment.example.invalid,/object/10
 2026-11-01T00:00:36Z,browser,GET,https,experiment.example.invalid,/object/03
 2026-11-01T00:00:37Z,media,GET,https,experiment.example.invalid,/object/10
 2026-11-01T00:00:38Z,random,GET,https,experiment.example.invalid,/object/10
@@ -50,12 +50,12 @@ timestamp,client_id,method,scheme,host,path
 2026-11-01T00:00:48Z,browser,GET,https,experiment.example.invalid,/object/01
 2026-11-01T00:00:49Z,media,GET,https,experiment.example.invalid,/object/11
 2026-11-01T00:00:50Z,random,GET,https,experiment.example.invalid,/object/02
-2026-11-01T00:00:51Z,media,GET,https,experiment.example.invalid,/video/oversized.mp4
-2026-11-01T00:00:52Z,media,GET,https,experiment.example.invalid,/object/10
-2026-11-01T00:00:53Z,random,GET,https,experiment.example.invalid,/object/09
-2026-11-01T00:00:54Z,browser,GET,https,experiment.example.invalid,/object/00
+2026-11-01T00:00:51Z,browser,GET,https,experiment.example.invalid,/object/00
+2026-11-01T00:00:52Z,media,GET,https,experiment.example.invalid,/object/11
+2026-11-01T00:00:53Z,random,GET,https,experiment.example.invalid,/object/01
+2026-11-01T00:00:54Z,browser,GET,https,experiment.example.invalid,/object/02
 2026-11-01T00:00:55Z,media,GET,https,experiment.example.invalid,/object/11
-2026-11-01T00:00:56Z,random,GET,https,experiment.example.invalid,/object/04
+2026-11-01T00:00:56Z,random,GET,https,experiment.example.invalid,/object/09
 2026-11-01T00:00:57Z,browser,GET,https,experiment.example.invalid,/object/00
 2026-11-01T00:00:58Z,media,GET,https,experiment.example.invalid,/object/11
 2026-11-01T00:00:59Z,random,GET,https,experiment.example.invalid,/object/08
@@ -67,7 +67,7 @@ timestamp,client_id,method,scheme,host,path
 2026-11-01T00:01:05Z,random,GET,https,experiment.example.invalid,/object/08
 2026-11-01T00:01:06Z,browser,GET,https,experiment.example.invalid,/object/03
 2026-11-01T00:01:07Z,media,GET,https,experiment.example.invalid,/object/11
-2026-11-01T00:01:08Z,media,GET,https,experiment.example.invalid,/video/oversized.mp4
+2026-11-01T00:01:08Z,random,GET,https,experiment.example.invalid,/object/10
 2026-11-01T00:01:09Z,browser,GET,https,experiment.example.invalid,/object/00
 2026-11-01T00:01:10Z,media,GET,https,experiment.example.invalid,/object/11
 2026-11-01T00:01:11Z,random,GET,https,experiment.example.invalid,/object/09
