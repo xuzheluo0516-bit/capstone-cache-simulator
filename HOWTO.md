@@ -6,44 +6,56 @@
 
 ## 1. 环境要求
 
-
-
-* **Python**：`>= 3.11`（开发与验证使用 Python 3.13）。
+* **Python**：`>= 3.11`。CI 在 3.11、3.12、3.13 上运行；本机另在 Python 3.14 实测通过。
 
 * **运行时依赖**：无。模拟器仅使用 Python 标准库。
 
-* **开发依赖**：仅 `pytest`（用于运行测试），不是运行时依赖。
+* **开发依赖**：`pytest`（可选，用于运行测试），不是运行时依赖。
 
-* 操作系统：Windows /macOS/ Linux 均可，命令示例以通用 shell 表示。
+* **绘图依赖（可选）**：`matplotlib`，仅生成实验图表时需要。
+
+* 操作系统：Windows / macOS / Linux 均可；命令在仓库根目录以相对路径执行。
 
 ## 2. 安装
 
 建议使用可编辑安装，便于开发：
 
-
-
 ```
 python -m pip install --upgrade pip
 python -m pip install -e .          # 仅安装模拟器（零第三方运行时依赖）
-python -m pip install -e ".[dev]"   # 额外安装 pytest 等开发工具
+python -m pip install -e ".[dev]"  # 额外安装 pytest 等开发工具
+python -m pip install -e ".[plot]"  # 额外安装 matplotlib（绘图，可选）
+python -m pip install -e ".[dev,plot]"  # 完整开发环境（等价 requirements.txt）
 ```
 
 ## 3. 项目结构
 
 ```
+pyproject.toml             # 构建、Python 版本与依赖配置
+requirements.txt           # 薄安装引用（-e .[dev,plot]）
+Makefile                   # 类 Unix 构建目标
+make.ps1                   # Windows PowerShell 薄映射
 src/cache_simulator/
 ├── models.py                # ResourceKey / Resource / Request
 ├── engine.py                # SharedCacheEngine and RequestResult events
 ├── policies.py              # FIFO / LRU / LFU
+├── gdsf.py                  # GDSF comparison baseline
+├── rwcsf.py                 # RW-CSF custom policy (CUSTOM)
 ├── input_parser.py          # CSV parsing and validation
 ├── metrics.py               # Global and per-client metrics
 ├── output.py                # Ten-column CSV serialization
-├── reference_validation.py  # Semantic expected-output comparator
+├── reference_validation.py   # Semantic expected-output comparator
+├── workloads.py             # Reproducible workload generator
+├── experiments.py           # Batch experiment scaffold
 ├── cli.py                   # Command-line entry point
 └── __main__.py              # Supports python -m cache_simulator
 tests/                       # unittest suite
 data/reference/              # Reference inputs and expected outputs
-docs/                        # Interface contract and data dictionary
+data/generated/              # Generated workload traces
+data/experiments/            # Batch experiment outputs (git-ignored)
+data/results/                # Committed formal results, manifests and figures
+d_experiments/               # H tuning, main/ablation/drift runs and plotting
+docs/                        # Contracts, data dictionary, design doc
 ```
 
 ## 4. 运行模拟（CLI）
@@ -82,9 +94,9 @@ python -m cache_simulator \
 
 ### 4.1 自定义策略用法
 
-`--policy` 现在可取 `FIFO`、`LRU`、`LFU`、`GDSF`、`CUSTOM`：
+`--policy` 可取 `FIFO`、`LRU`、`LFU`、`GDSF`、`CUSTOM`：
 
-* `CUSTOM` 是 D 设计的自定义策略 RW-CSF；`GDSF` 是用于对比的基线策略。
+* `CUSTOM` 是自定义策略 RW-CSF；`GDSF` 是用于对比的基线策略。设计原理、参数与半衰期 $H$ 的选取见 [docs/custom-policy-design.md](docs/custom-policy-design.md)。
 
 * 示例命令：
 
@@ -93,18 +105,16 @@ python -m cache_simulator --resources data/reference/resources.csv \
   --requests data/reference/requests_reference.csv --policy CUSTOM
 ```
 
-策略的设计原理与参数见 README（由 D 提供），本指南不展开。
+* **固定 5 ms 命中延迟**：`CUSTOM`/`GDSF` 的策略评分基于固定 5 ms 命中延迟。命令行 `--hit-latency X` 只传入引擎，**不会**传入策略评分（策略按默认 5.0 构造）；课程要求的 5 ms 下行为正确，若修改该参数需同步调整策略参数。
 
 
 ## 5. 运行测试
 
-两种方式等价，测试均为标准库 `unittest` 风格，无需为 pytest 重写：
-
-
+标准库 `unittest` 运行器（与 CI 一致，测试为 `unittest` 风格，无需为 pytest 重写）：
 
 ```
-python -m unittest discover          # 标准库运行器
-python -m pytest                     # 已安装开发依赖时
+python -m unittest discover -s tests -t . -v
+python -m pytest                     # 已安装 dev 依赖时等价运行
 ```
 
 ## 6. 自动参考验证
@@ -117,6 +127,8 @@ python -m cache_simulator.reference_validation
 ```
 
 验证失败会报告策略、请求序号、字段、预期值和实际值，并返回非零退出码。
+
+> 该对账只覆盖 `FIFO`、`LRU`、`LFU`；`GDSF` 与 `CUSTOM` 没有参考预期输出，不在此验证范围内。
 
 ## 7. 输入文件要求
 
@@ -142,28 +154,68 @@ python -m cache_simulator.reference_validation
 
 
 
-* 容量 `102400` 字节（100 KiB）、命中延迟 `5` ms、初始缓存为空。
+* 容量以**字节**为单位（1 KiB = 1024 字节）：参考配置 `102400` 字节 = 100 KiB；命中延迟 `5` ms；初始缓存为空。`--capacity` 接收精确字节数。
 
 * 每次独立运行都新建引擎与策略，不继承上一轮的缓存或策略状态。
 
 ## 9. 可复现实验输入与跑批
 
-生成三类负载、每类三个规模的 CSV（会用项目解析器校验）：
+### 生成负载
+
+生成三类负载、每类三个规模（small 72 / medium 360 / large 1440 请求）的 CSV，由项目解析器校验：
 
 ```bash
 python -m cache_simulator.workloads --output-dir data/generated --seed 20261111
 ```
 
-当前功能分支仅有 FIFO、LRU、LFU。可先用三策略执行 9 组输入 × 5 档容量 × 3 策略的框架试跑：
+### 批量跑批
 
 ```bash
-python -m cache_simulator.experiments --output-dir data/experiments/three-policy-smoke --seed 20261111 --policies FIFO LRU LFU
+python -m cache_simulator.experiments --output-dir data/experiments/latest --seed 20261111
 ```
 
-第四种策略注册为 `CUSTOM` 且 #9 的参考验证通过后，默认命令会运行四策略：
+常用参数（与 `experiments.py` 一致）：
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `--output-dir` | `data/experiments/latest` | 跑批输出目录：`summary.csv`、`clients.csv`、`events/*.csv`、`manifest.json` |
+| `--seed` | `20261111` | 随机种子；正式实验种子为 20261111–20261115；调参选 $H$ 用种子 31415，不参与正式结果 |
+| `--capacities-bytes` | 32 / 128 / 256 / 512 / 1024 KiB | 容量档位，精确字节数 |
+| `--policies` | 五策略 | 参与跑批的策略名 |
+| `--policy-parameters-json` | 无 | JSON 文件，把构造参数传给对应策略（如 CUSTOM 的 `half_life`），并写入 `manifest.json` |
+| `--hit-latency-ms` | `5.0` | 命中延迟（仅传入引擎） |
+
+- `data/reference/` 不会被修改；`data/experiments/` 与 `data/generated/` 的中/大规模产物按 `.gitignore` 忽略。
+
+### 一键正式实验与图表
+
+已提交的正式结果可用一条命令重跑（会写入 `data/experiments/run_all/`，默认不覆盖 `data/results/`）：
 
 ```bash
-python -m cache_simulator.experiments --output-dir data/experiments/full --seed 20261111
+python d_experiments/run_all.py --output-dir data/experiments/run_all
 ```
 
-当前若直接执行默认命令，会明确报错 `policy not registered: CUSTOM`，不产生伪四策略结果。容量参数 `--capacities-bytes` 使用精确字节数；默认档位及数据设计见 [实验说明](docs/experiments.md)。`summary.csv`、`clients.csv`、每次运行的 `events/*.csv` 与 `manifest.json` 可用于审计；`data/reference/` 不会被修改。
+从已提交的结果表重新生成 6 张图：
+
+```bash
+make figures
+# Windows PowerShell
+.\make.ps1 figures
+# 等价直接调用
+python d_experiments/make_plots.py \
+  --results-dir data/results/main \
+  --tuning-dir data/results/h-tuning \
+  --figures-dir data/results/figures
+```
+
+`make figures` 使用 `RESULTS_DIR`、`TUNING_DIR`、`FIGURES_DIR` 三个变量，默认分别指向 `data/results/main`、`data/results/h-tuning`、`data/results/figures`。绘图需要安装 `plot` 可选依赖：`python -m pip install -e ".[plot]"`。
+
+### Windows
+
+无 `make` 时直接运行上述 `python -m ...` 命令，或使用薄映射脚本：
+
+```powershell
+.\make.ps1 experiments
+.\make.ps1 test
+.\make.ps1 reference
+```
