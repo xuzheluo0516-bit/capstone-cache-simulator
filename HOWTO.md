@@ -53,8 +53,8 @@ tests/                       # unittest suite
 data/reference/              # Reference inputs and expected outputs
 data/generated/              # Generated workload traces
 data/experiments/            # Batch experiment outputs (git-ignored)
-data/results/                # Committed formal results, manifests and figures
-d_experiments/               # H tuning, main/ablation/drift runs and plotting
+data/results/                # Formal results, manifests and figures (#33 合并后)
+d_experiments/               # H tuning, main/ablation/drift runs and plotting (#33 合并后)
 docs/                        # Contracts, data dictionary, design doc
 ```
 
@@ -188,6 +188,8 @@ python -m cache_simulator.experiments --output-dir data/experiments/latest --see
 - `data/reference/` 不会被修改；`data/experiments/` 与 `data/generated/` 的中/大规模产物按 `.gitignore` 忽略。
 
 ### 一键正式实验与图表
+
+以下命令依赖 PR #32 交付的 `d_experiments/`；在 #33 验收合并前不可用。
 
 已提交的正式结果可用一条命令重跑（会写入 `data/experiments/run_all/`，默认不覆盖 `data/results/`）：
 

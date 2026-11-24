@@ -33,9 +33,9 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 │   ├── reference/                       # 参考输入、预期输出与答案
 │   ├── generated/                        # 生成的工作负载 trace（small 入库，medium/large 忽略）
 │   ├── experiments/                      # 批量实验产物（git-ignored）
-│   ├── results/                          # 正式实验表、manifest 与 6 张图
+│   ├── results/                          # 正式实验表、manifest 与 6 张图（#33 合并后）
 │   └── tuning/                           # 调参选 H 专用 trace（种子 31415）
-├── d_experiments/                        # H 选取、主实验、消融、漂移、公平性与绘图脚本
+├── d_experiments/                        # H 选取、主实验、消融、漂移、公平性与绘图脚本（#33 合并后）
 ├── docs/                                # 设计契约、数据字典、设计文档与本规范
 ├── src/cache_simulator/                 # 全部运行时代码（单一包）
 ├── tests/                               # unittest 测试套件
@@ -80,8 +80,8 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 | `data/generated/`      | Present                | 工作负载生成器产出的资源 / 请求 / 元数据；small 入库，medium/large 被忽略 |
 | `data/experiments/`    | Present（git-ignored）  | 批量实验产物输出目录，按 `.gitignore` 忽略，不入库                 |
 | `data/tuning/`         | Present                | 调参专用 trace（种子 31415），仅用于选 H，不参与正式结果            |
-| `data/results/`        | Present                | D 的正式汇总表、manifest 与 6 张图；由 #33 验收后作为 #13/#15/#17 的输入 |
-| `d_experiments/`       | Present                | H 选取、主实验、消融、漂移、公平性与绘图的一键脚本                |
+| `data/results/`        | Planned（#33 合并后）  | D 的正式汇总表、manifest 与 6 张图；由 #33 验收后作为 #13/#15/#17 的输入 |
+| `d_experiments/`       | Planned（#33 合并后）  | H 选取、主实验、消融、漂移、公平性与绘图的一键脚本                |
 
 > 说明：
 > `src/capstone_cache_simulator.egg-info/`
@@ -121,7 +121,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
    **当前集成状态**：
 
    * 早期堆叠链 #21 → #23 → #24 与 E 链 #22 → #26 已通过整合 PR #30 并入 `main`。PR #21 已关闭为 superseded by #30；PR #22 的脚手架内容已被 #26/#29 取代，按 #34 清理。
-   * PR #31（构建脚本与 README/HOWTO，关联 #2/#14）与 PR #32（D 实验脚本、结果与图，关联 #12）在 `main` 上独立评审；#33 负责 #32 的验收与合并，#36 负责 #31 的验收与合并。
+   * PR #31（构建脚本与 README/HOWTO，关联 #2/#14）与 PR #32（D 实验脚本、结果与图，关联 #12）均针对 `main` 独立评审；#33 负责 #32 的验收与合并，#36 负责 #31 的验收与合并。
    * PR #25（B 文档，Draft）待 #33 合并后按 #34 重定向到 `main` 并复核。
    * `feature/engine-cli` 基础分支已随整合链进入 `main`。
 
@@ -296,9 +296,9 @@ CI 会依次执行单元测试、参考对账与编译检查。任何 “测试�
 
 2. 报告统稿人、视频剪辑人、最终提交人与复核人的最终确认。
 
-3. `data/results/` 与 `d_experiments/` 已随 #32 交付；`make figures` 使用 `data/results/main`、`data/results/h-tuning` 生成 `data/results/figures/`。
+3. `data/results/` 与 `d_experiments/` 随 #32 交付（#33 合并后生效）；`make figures` 使用 `data/results/main`、`data/results/h-tuning` 生成 `data/results/figures/`。
 
-4. 实验归档约定以 E5/E6 为准；当前已交付 `data/results/`（表、manifest、图）与 `d_experiments/`（脚本）。
+4. 实验归档约定以 E5/E6 为准；`data/results/`（表、manifest、图）与 `d_experiments/`（脚本）随 #32 交付（#33 合并后生效）。
 
 ## 11. 既有阶段目标
 

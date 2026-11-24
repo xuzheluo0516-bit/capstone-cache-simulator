@@ -2,7 +2,7 @@
 
 F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implementation and Experimentation**
 
-本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已实现输入解析、共享缓存引擎、FIFO/LRU/LFU 三标准策略、指标与 CSV 输出、参考对账、CLI，以及 GDSF 基线与 RW-CSF 自定义策略；批量实验与图表按后续任务推进。
+本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已实现输入解析、共享缓存引擎、FIFO/LRU/LFU 三标准策略、指标与 CSV 输出、参考对账、CLI，以及 GDSF 基线与 RW-CSF 自定义策略；批量实验脚本、正式结果与图表见 PR #32（#33 验收后合入）。
 
 ## 组织与截止时间
 
@@ -116,8 +116,8 @@ tests/                       # unittest suite
 data/reference/              # Reference inputs and expected outputs
 data/generated/              # Generated workload traces (small committed; medium/large ignored)
 data/experiments/            # Batch experiment outputs (git-ignored)
-data/results/                # Committed formal tables, manifests and figures
-d_experiments/               # H tuning, main/ablation/drift experiments and plotting
+data/results/                # Formal tables, manifests and figures (PR #32)
+d_experiments/               # H tuning, main/ablation/drift experiments and plotting (PR #32)
 docs/                        # Contracts, data dictionary, design doc, guidelines
 ```
 
@@ -132,7 +132,7 @@ docs/                        # Contracts, data dictionary, design doc, guideline
 | 实验绘图（matplotlib，可选） | `python -m pip install -e ".[plot]"` |
 | 完整开发环境 | `python -m pip install -e ".[dev,plot]"`（或 `python -m pip install -r requirements.txt`） |
 
-构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `figures` / `clean`。`figures` 从 `data/results/main` 与 `data/results/h-tuning` 重新生成 `data/results/figures/` 下的 6 张 PNG。
+构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `figures` / `clean`。`figures` 从 `data/results/main` 与 `data/results/h-tuning` 重新生成 `data/results/figures/` 下的 6 张 PNG（需 PR #32 合入后可用）。
 
 ### 命令行入口
 
