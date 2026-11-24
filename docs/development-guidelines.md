@@ -49,23 +49,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 └── pyproject.toml                       # 构建、Python 版本与依赖配置
 ```
 
-> 注：本目录树只呈现受版本控制的内容；被 
->
-> `.gitignore`
->
->  忽略的本地产物（如 
->
-> `.pytest_cache/`
->
-> 、
->
-> `*.egg-info/`
->
-> 、
->
-> `__pycache__/`
->
-> ）不列出。
+> 注：本目录树只呈现受版本控制的内容；被 `.gitignore` 忽略的本地产物（如 `.pytest_cache/`、`*.egg-info/`、`__pycache__/`）不列出。
 
 ### 1.2 各目录定位
 
