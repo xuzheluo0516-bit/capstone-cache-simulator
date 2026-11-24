@@ -6,7 +6,7 @@
     512,
     1024
   ],
-  "code_version": "a60d78c70a398aff39a159feae7a6c2cebe5d25e",
+  "code_version": "170da5de4cdaf3054b856c9689848a0b22c8687e",
   "command": "python d_experiments/run_drift.py --output-dir <output-dir> --half-life 20.0 --seeds 20261111 20261112 20261113 20261114 20261115",
   "completed_runs": 150,
   "dependency_versions": {
@@ -14,7 +14,7 @@
     "python": "3.14.6"
   },
   "design": "3 phases x 480 requests, hot group of 4 per phase (85%), 15% uniform over 12 resources",
-  "experiment_source_sha256": "9749ec2f124ddc9a6a72576b375680e5bc74cfa1c35474d13f639f0aace1f046",
+  "experiment_source_sha256": "3d6e42bf6514d6245c284b6a93a1605edf25d2f5919541fb87cdbc6a6b2bb761",
   "failed_runs": 0,
   "half_life": 20.0,
   "hit_latency_ms": 5.0,
