@@ -13,7 +13,7 @@
     "python": "3.14.6"
   },
   "design": "3 phases x 480 requests, hot group of 4 per phase (85%), 15% uniform over 12 resources",
-  "experiment_source_sha256": "f53f209c608b0d18061feb1c39d586d9c083b582340136061b6e313ff003e0d0",
+  "experiment_source_sha256": "161d7098469f9ec84e83e0dfc47589abef312ca15be637a6f87a22110d59de42",
   "failed_runs": 0,
   "half_life": 20.0,
   "hit_latency_ms": 5.0,
