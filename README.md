@@ -2,7 +2,7 @@
 
 F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implementation and Experimentation**
 
-本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已实现输入解析、共享缓存引擎、FIFO/LRU/LFU 三标准策略、指标与 CSV 输出、参考对账、CLI，以及 GDSF 基线与 RW-CSF 自定义策略；批量实验脚本、正式结果与图表见 PR #32（#33 验收后合入）。
+本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已实现输入解析、共享缓存引擎、FIFO/LRU/LFU 三标准策略、指标与 CSV 输出、参考对账、CLI，以及 GDSF 基线与 RW-CSF 自定义策略；批量实验脚本、正式结果与图表已随 PR #32 合入 main。
 
 ## 组织与截止时间
 
@@ -132,7 +132,7 @@ docs/                        # Contracts, data dictionary, design doc, guideline
 | 实验绘图（matplotlib，可选） | `python -m pip install -e ".[plot]"` |
 | 完整开发环境 | `python -m pip install -e ".[dev,plot]"`（或 `python -m pip install -r requirements.txt`） |
 
-构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `figures` / `clean`。`figures` 从 `data/results/main` 与 `data/results/h-tuning` 重新生成 `data/results/figures/` 下的 6 张 PNG（需 PR #32 合入后可用）。
+构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `figures` / `clean`。`figures` 从 `data/results/main` 与 `data/results/h-tuning` 重新生成 `data/results/figures/` 下的 6 张 PNG。
 
 ### 命令行入口
 
@@ -181,11 +181,11 @@ python -m cache_simulator --resources data/reference/resources.csv \
 
 每组在 Brightspace 提交一个可复现的 ZIP，其中包括：
 
-- [ ] 全部模拟器源代码（核心模拟器已合入；实验脚本随 #33 合入）。
+- [x] 全部模拟器源代码（核心模拟器、实验脚本与结果均已合入 main）。
 - [x] 可执行文件，或 Makefile / 等效构建配置与构建说明。
 - [x] README：项目结构、实现与设计决策。
 - [x] HOWTO：编译、必要安装步骤、运行方式、输入文件与命令行参数。
-- [ ] 实验所需输入、实验结果、性能测量和比较图表；包含复现实验所需全部材料。
+- [x] 实验所需输入、实验结果、性能测量和比较图表；包含复现实验所需全部材料。
 - [ ] **3–4 页技术报告**：自定义策略、数据结构、实验方法、比较图表、发现与结论。
 
 另需录制演示视频，上传 **YouTube**，并在 Brightspace 提交链接（可设为 Unlisted）：
@@ -217,7 +217,7 @@ python -m cache_simulator --resources data/reference/resources.csv \
 - [x] 实现输入解析、共享缓存状态及 FIFO、LRU、LFU。
 - [x] 以参考数据验证逐条行为和全部统计指标。
 - [x] 设计自定义策略并明确优化目标。
-- [ ] 准备至少三类工作负载及多种容量，完成公平比较（工作负载已生成；比较结果随 #33 合入）。
+- [x] 准备至少三类工作负载及多种容量，完成公平比较。
 - [ ] 生成图表，分析客户端公平性与策略取舍。
 - [ ] 完成 README、HOWTO、3–4 页报告及可复现 ZIP。
 - [ ] 全员录制视频，上传 YouTube，在截止前提交 ZIP 与视频链接。
