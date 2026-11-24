@@ -6,7 +6,10 @@ param(
     [string]$Target = "help"
 )
 
-$python = "python"
+$python = if ($env:PYTHON) { $env:PYTHON } else { "python" }
+$resultsDir = if ($env:RESULTS_DIR) { $env:RESULTS_DIR } else { "data/results/main" }
+$tuningDir = if ($env:TUNING_DIR) { $env:TUNING_DIR } else { "data/results/h-tuning" }
+$figuresDir = if ($env:FIGURES_DIR) { $env:FIGURES_DIR } else { "data/results/figures" }
 
 switch ($Target) {
     "help" {
@@ -20,18 +23,23 @@ switch ($Target) {
     }
     "install" {
         & $python -m pip install -e .
+        exit $LASTEXITCODE
     }
     "test" {
         & $python -m unittest discover -s tests -t . -v
+        exit $LASTEXITCODE
     }
     "reference" {
         & $python -m cache_simulator.reference_validation
+        exit $LASTEXITCODE
     }
     "experiments" {
         & $python -m cache_simulator.experiments
+        exit $LASTEXITCODE
     }
     "figures" {
-        & $python d_experiments/make_plots.py --results-dir data/results/main --tuning-dir data/results/h-tuning --figures-dir data/results/figures
+        & $python d_experiments/make_plots.py --results-dir $resultsDir --tuning-dir $tuningDir --figures-dir $figuresDir
+        exit $LASTEXITCODE
     }
     "clean" {
         # Remove caches and build artifacts only; keep data/ and tracked results.

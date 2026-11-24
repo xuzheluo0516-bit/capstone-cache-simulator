@@ -31,6 +31,6 @@ figures:
 	$(PYTHON) d_experiments/make_plots.py --results-dir $(RESULTS_DIR) --tuning-dir $(TUNING_DIR) --figures-dir $(FIGURES_DIR)
 
 clean:
-	rm -rf build dist *.egg-info .pytest_cache .ruff_cache
+	rm -rf build dist *.egg-info src/*.egg-info .pytest_cache .ruff_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type f -name '*.py[cod]' -delete

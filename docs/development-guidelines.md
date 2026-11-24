@@ -10,7 +10,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 
 * 对应 issue：[#2 技术栈与开发规范](https://github.com/xuzheluo0516-bit/capstone-cache-simulator/issues/2)
 
-  第 2、3、4、5、8、9 条，验收标准 1、3。
+  第 2、3、4、5、6、7、8、9 条，验收标准 1、3、4。
 
 * 关联契约：[docs/interface\_v1.md](interface_v1.md)（Interface v1，已冻结）。
 
@@ -216,6 +216,8 @@ data/generated/*_large_*
 
 * CI：GitHub Actions 在 **3.11、3.12、3.13** 三个版本矩阵上运行。
 
+* 跨版本复现：D 的原始结果环境为 Python **3.13.18**，C 的复核环境为 Python **3.14.6**。两个标准差字段存在 1-ULP 浮点差异，其余正式结果表数值一致；CSV 的 CRLF/LF 表示不同，统一为 LF 后 `source_sha256` 一致。详见 [reproduction-log.md](reproduction-log.md) 与 PR #32 的 Reproducibility Notes。
+
 * 因此贡献代码须兼容 3.11 及以上，避免使用仅更新版本可用的语法而破坏 CI。
 
 ## 7. 依赖记录
@@ -297,3 +299,13 @@ CI 会依次执行单元测试、参考对账与编译检查。任何 “测试�
 3. `data/results/` 与 `d_experiments/` 已随 #32 交付；`make figures` 使用 `data/results/main`、`data/results/h-tuning` 生成 `data/results/figures/`。
 
 4. 实验归档约定以 E5/E6 为准；当前已交付 `data/results/`（表、manifest、图）与 `d_experiments/`（脚本）。
+
+## 11. 既有阶段目标
+
+以下为团队计划（对应 issue #2 验收标准 4），不是额外课程截止日期：
+
+| 里程碑 | 目标 | 计划完成 |
+| --- | --- | --- |
+| M1 | 参考验证 | 2026-11-16 |
+| M2 | 策略实现 | 2026-11-20 |
+| M3 | 实验分析 | 2026-11-27 |
