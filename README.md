@@ -141,7 +141,7 @@ python -m cache_simulator --resources data/reference/resources.csv \
 
 每组在 Brightspace 提交一个可复现的 ZIP，其中包括：
 
-- [x] 全部模拟器源代码。
+- [ ] 全部模拟器源代码（核心模拟器已合入；实验脚本随 #33 合入）。
 - [ ] 可执行文件，或 Makefile / 等效构建配置与构建说明。
 - [ ] README：项目结构、实现与设计决策。
 - [ ] HOWTO：编译、必要安装步骤、运行方式、输入文件与命令行参数。
@@ -176,7 +176,7 @@ python -m cache_simulator --resources data/reference/resources.csv \
 - [x] 实现输入解析、共享缓存状态及 FIFO、LRU、LFU。
 - [x] 以参考数据验证逐条行为和全部统计指标。
 - [x] 设计自定义策略并明确优化目标。
-- [x] 准备至少三类工作负载及多种容量，完成公平比较。
+- [ ] 准备至少三类工作负载及多种容量，完成公平比较（工作负载已生成；比较结果随 #33 合入）。
 - [ ] 生成图表，分析客户端公平性与策略取舍。
 - [ ] 完成 README、HOWTO、3–4 页报告及可复现 ZIP。
 - [ ] 全员录制视频，上传 YouTube，在截止前提交 ZIP 与视频链接。
