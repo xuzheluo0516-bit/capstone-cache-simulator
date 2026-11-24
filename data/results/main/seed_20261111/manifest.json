@@ -7,7 +7,7 @@
     1048576
   ],
   "capacity_unit": "bytes; KiB = 1024 bytes",
-  "code_version": "4767dcb82b482c06e80a8fae1a6b9591321e05ba",
+  "code_version": "a60d78c70a398aff39a159feae7a6c2cebe5d25e",
   "command": "python -m cache_simulator.experiments",
   "completed_runs": 75,
   "counts": {
@@ -17,7 +17,7 @@
     "package": "0.1.0",
     "python": "3.14.6"
   },
-  "experiment_source_sha256": "161d7098469f9ec84e83e0dfc47589abef312ca15be637a6f87a22110d59de42",
+  "experiment_source_sha256": "9749ec2f124ddc9a6a72576b375680e5bc74cfa1c35474d13f639f0aace1f046",
   "hit_latency_ms": 5.0,
   "initial_state": "empty; all requests counted; no warmup",
   "planned_runs": 75,
