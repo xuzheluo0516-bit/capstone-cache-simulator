@@ -256,9 +256,11 @@ These additional values are checked by `tests/test_reference_validation.py`.
 
 The formal experiments are produced by `d_experiments/` and written under
 `data/results/`. All CSV files are UTF-8 with a header row and LF line endings.
-Numeric values are decimal text; percentages are stored as fractions in
-`[0, 1]`, not as `12.5` for 12.5%. Byte counts are exact integers unless the
-column name says otherwise. `capacity_KiB` is `capacity_bytes / 1024`.
+Numeric values are decimal text. Hit-rate, byte-hit-rate, and fairness inputs
+are stored as fractions in `[0, 1]`, not as `12.5` for 12.5%; the ablation
+`percent_change` columns are percentage points, so `0.205` means `+0.205%`.
+Byte counts are exact integers unless the column name says otherwise.
+`capacity_KiB` is `capacity_bytes / 1024`.
 
 The committed result set contains the aggregated tables, the manifests, and
 the six PNG figures. Per-seed `summary.csv`, `clients.csv`, `events/`, and

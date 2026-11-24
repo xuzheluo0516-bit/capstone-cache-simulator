@@ -3,8 +3,8 @@
 This note supplies the report sections on input data, metrics, output, and
 reproducibility. It describes the final experiment artifacts produced by
 `d_experiments/` and the committed tables under `data/results/`. Numeric
-comparisons and conclusions must be read from those tables after the
-corresponding acceptance review, not from this method note.
+comparisons and conclusions must be read from those tables (which passed #33
+acceptance), not from this method note.
 
 ## 1. Input data and event processing
 
@@ -157,7 +157,6 @@ average response times are 95.33 ms, 92.33 ms, and 84.33 ms. These are
 reference-validation results, not conclusions about the generated workloads
 or the `GDSF`/`CUSTOM` policies.
 
-Comparisons and conclusions belong in the report after the `data/results/`
-tables pass acceptance. In particular, a pre-registered drift prediction that
-is not supported must be reported as such rather than reframed after the
-fact.
+Comparisons and conclusions belong in the report using the accepted
+`data/results/` tables. In particular, a pre-registered drift prediction that
+is not supported must be reported as such rather than reframed after the fact.
