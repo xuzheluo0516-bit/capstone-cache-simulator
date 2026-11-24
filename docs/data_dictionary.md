@@ -252,128 +252,257 @@ clients' averages):
 
 These additional values are checked by `tests/test_reference_validation.py`.
 
-## 8. Experiment summary CSVs (current E-branch schema; pending final confirmation)
+## 8. Formal experiment result files
 
-The following two schemas are present in the current batch-experiment scaffold
-(`src/cache_simulator/experiments.py`). They describe the generated CSV
-artifacts, not the final D-produced comparison tables. Recheck these names
-after E's workload changes and D's experiment PR are integrated.
+The formal experiments are produced by `d_experiments/` and written under
+`data/results/`. All CSV files are UTF-8 with a header row and LF line endings.
+Numeric values are decimal text; percentages are stored as fractions in
+`[0, 1]`, not as `12.5` for 12.5%. Byte counts are exact integers unless the
+column name says otherwise. `capacity_KiB` is `capacity_bytes / 1024`.
 
-### 8.1 `summary.csv`
+The committed result set contains the aggregated tables, the manifests, and
+the six PNG figures. Per-seed `summary.csv`, `clients.csv`, `events/`, and
+generated input files are reproducible working files and are not all
+committed. The paths below use the layout written by `d_experiments/run_all.py`.
 
-One row represents one completed combination of workload, scale, seed,
-capacity, and policy. Current column order:
+### 8.1 Per-seed `summary.csv` and `clients.csv`
+
+`src/cache_simulator/experiments.py` writes one `summary.csv` and one
+`clients.csv` per seed directory (`seed_<seed>/`) through `run_seeds()`.
+`summary.csv` has one row per workload, scale, seed, capacity, and policy:
 
 | Column | Meaning | Unit / convention |
 | --- | --- | --- |
 | `workload` | Workload family | `repeated`, `sequential`, or `mixed` |
 | `scale` | Workload size label | `small`, `medium`, or `large` |
-| `seed` | Top-level workload seed | Integer |
+| `seed` | Formal workload seed | Integer |
 | `capacity_bytes` | Cache capacity | Bytes; exact integer |
 | `capacity_KiB` | Same capacity for display | KiB; bytes / 1024 |
-| `policy` | Replacement policy | Policy registry name |
-| `requests` | Number of requests processed | Count |
-| `hits` | Cache hits | Count |
-| `misses` | Cache misses | Count |
+| `policy` | Replacement policy | `FIFO`, `LRU`, `LFU`, `GDSF`, or `CUSTOM` |
+| `requests` | Requests processed | Count |
+| `hits`, `misses` | Cache hits and misses | Counts; `hits + misses = requests` |
 | `request_bytes` | Sum of requested resource sizes, counting repeats | Bytes |
-| `hit_bytes` | Sum of sizes for hit requests, counting repeats | Bytes |
+| `hit_bytes` | Sum of sizes of hit requests, counting repeats | Bytes |
 | `origin_bytes` | Sum of sizes fetched on misses | Bytes |
-| `request_hit_rate` | `hits / requests` | Fraction in [0, 1]; null if no requests |
-| `byte_hit_rate` | `hit_bytes / request_bytes` | Fraction in [0, 1]; null if zero request bytes |
-| `average_response_ms` | Mean response time across all requests | Milliseconds; null if no requests |
+| `request_hit_rate` | `hits / requests` | Fraction; empty if no requests |
+| `byte_hit_rate` | `hit_bytes / request_bytes` | Fraction; empty if zero request bytes |
+| `average_response_ms` | Request-weighted mean response time | Milliseconds; empty if no requests |
 | `total_response_ms` | Sum of response times | Milliseconds |
-| `resources_sha256` | Hash of the exact resource input CSV | SHA-256 hex digest |
-| `requests_sha256` | Hash of the exact request input CSV | SHA-256 hex digest |
-| `events_file` | Relative path to the corresponding per-request event CSV | Relative path under the experiment output directory |
+| `resources_sha256` | SHA-256 of the exact resource CSV | Hex digest |
+| `requests_sha256` | SHA-256 of the exact request CSV | Hex digest |
+| `events_file` | Relative path to the per-request event CSV | Relative to the seed output directory |
 
-The overall mean is request-weighted: total response time divided by total
-request count. Do not average per-client means to obtain a global mean.
-
-### 8.2 `clients.csv`
-
-One row represents one client within one workload, scale, seed, capacity,
-and policy combination. Current column order:
+`clients.csv` has one row per client within a seed, workload, scale,
+capacity, and policy:
 
 | Column | Meaning | Unit / convention |
 | --- | --- | --- |
-| `workload` | Workload family | `repeated`, `sequential`, or `mixed` |
-| `scale` | Workload size label | `small`, `medium`, or `large` |
-| `seed` | Top-level workload seed | Integer |
+| `workload`, `scale`, `seed` | Same condition labels as `summary.csv` | As above |
 | `capacity_bytes` | Cache capacity | Bytes |
-| `policy` | Replacement policy | Policy registry name |
-| `client_id` | Client identifier | String |
+| `policy` | Replacement policy | As above |
+| `client_id` | Client identifier from the request trace | String |
 | `requests` | Requests made by this client | Count |
-| `hits` | Hits for this client | Count |
-| `misses` | Misses for this client | Count |
-| `request_hit_rate` | `hits / requests` for this client | Fraction; null if no requests |
-| `average_response_ms` | Mean response time for this client's requests | Milliseconds; null if no requests |
+| `hits`, `misses` | Hits and misses for this client | Counts |
+| `request_hit_rate` | `hits / requests` for this client | Fraction; empty if no requests |
+| `average_response_ms` | Mean response time for this client's requests | Milliseconds; empty if no requests |
 
-The current experiment scaffold writes `summary.csv` and `clients.csv`.
-The separate `main_table.csv`, `fairness.csv`, and `per_client.csv`
-schemas are not yet present in this branch and must be documented from D's
-actual output columns after D and E confirm the final names and units. Do not
-infer or rename those schemas from the current two files.
+The global average response time is request-weighted. Do not average the
+per-client means to obtain it. A policy run always starts from a fresh, empty
+cache for its condition; no warm-up requests are discarded.
 
+### 8.2 `main_table.csv` (aggregated over seeds)
 
-### 8.3 `manifest.json` and generated-input metadata
+One row per workload, capacity, and policy, averaged over the five formal
+seeds. The committed file uses `n_seeds = 5`:
 
-The current experiment runner also writes a JSON manifest. Its top-level
-fields record:
+| Column | Meaning |
+| --- | --- |
+| `workload` | Workload family |
+| `capacity_KiB` | Capacity in KiB |
+| `policy` | Replacement policy |
+| `n_seeds` | Number of seeds in the aggregation |
+| `average_response_ms_mean`, `average_response_ms_std` | Per-seed average response time, then mean and sample standard deviation across seeds |
+| `request_hit_rate_mean`, `request_hit_rate_std` | Per-seed request hit rate, then mean / sample standard deviation |
+| `byte_hit_rate_mean`, `byte_hit_rate_std` | Per-seed byte hit rate, then mean / sample standard deviation |
+| `origin_bytes_mean`, `origin_bytes_std` | Per-seed origin traffic, then mean / sample standard deviation |
+
+The standard deviation uses denominator `n - 1`. The mean of a metric is
+computed on the per-seed values; it is not a pooled average over requests.
+
+### 8.3 `per_client.csv`
+
+One row per workload, capacity, policy, and client. The committed file covers
+the `mixed` workload and uses `LRU` as the comparison baseline:
+
+| Column | Meaning |
+| --- | --- |
+| `workload`, `capacity_KiB`, `policy`, `client_id` | Condition identifiers |
+| `n_seeds` | Number of seeds contributing to the row |
+| `hit_rate_mean` | Client request hit rate, averaged over seeds |
+| `avg_response_ms_mean` | Client average response time, averaged over seeds |
+| `delta_vs_baseline_ms` | `avg_response_ms_mean` minus the same client's mean for the baseline policy at the same capacity; negative means faster than the baseline; empty when the baseline cell is absent |
+
+`d_experiments/analyze_fairness.py --baseline <policy>` selects the baseline;
+the committed table uses the default `LRU`.
+
+### 8.4 `fairness.csv`
+
+One row per workload, capacity, and policy. For each seed, the script computes
+Jain's index over the clients' request hit rates, then aggregates over seeds:
+
+| Column | Meaning |
+| --- | --- |
+| `workload`, `capacity_KiB`, `policy` | Condition identifiers |
+| `n_seeds` | Number of seeds with client rows for the condition |
+| `jain_mean`, `jain_std` | Mean and sample standard deviation of the per-seed Jain index over client request hit rates |
+| `worst_client_ms_mean` | For each seed, the maximum per-client average response time; then the mean across seeds |
+| `worst_client_id` | Client most often attaining that per-seed maximum; ties are resolved by lexicographic order |
+
+Jain's index is in `[1/n, 1]` for `n` clients; 1 means equal client hit rates.
+If every client hit rate is zero, the index is undefined and stored as `nan`.
+A client with an inherently low hit rate lowers the index for every policy, so
+compare policies at the same capacity rather than reading the absolute index
+as a quality score.
+
+### 8.5 Half-life tuning (`h-tuning/`)
+
+`h-tuning/summary.csv` uses the same per-seed schema as section 8.1 and was
+generated with the tuning seed `31415`, not a formal seed. Its policy names
+include `RWCSF_H5`, `RWCSF_H20`, `RWCSF_H100`, `RWCSF_H500`, plus `FIFO`,
+`LRU`, `LFU`, and `GDSF`.
+
+`h-tuning/h_choice.json` records the pre-registered selection rule and result:
+
+| Field | Meaning |
+| --- | --- |
+| `protocol` | Selection rule: mean over capacities per workload, then mean over the three workloads of `average_response_ms`; smallest wins, ties prefer the smaller half-life |
+| `candidates` | Candidate half-lives tested: `[5, 20, 100, 500]` |
+| `seed` | Tuning seed `31415` |
+| `scores_ms` | Score for each candidate, keyed by candidate value |
+| `chosen_half_life` | Selected half-life; the committed run selected `20` |
+| `source_sha256` | SHA-256 of the experiment source used for the tuning run |
+
+The formal seeds are `20261111` through `20261115`; the tuning seed must not
+appear in formal runs.
+
+### 8.6 Ablation (`ablation/`)
+
+The ablation removes one ingredient of RW-CSF at the fixed half-life:
+
+| Variant | Change from `CUSTOM` |
+| --- | --- |
+| `ABL_NO_LATENCY` | Replace the latency benefit `dT` with 1; score becomes `F / s` |
+| `ABL_NO_SIZE` | Remove size normalization; score becomes `F * dT` |
+| `ABL_NO_DECAY` | Half-life becomes infinity; frequency stops decaying |
+
+`ablation/ablation_table.csv` has `variant`, then one column per workload
+(`repeated`, `sequential`, `mixed`). Each cell is the percent change in mean
+average response time of the variant relative to the full policy, first
+averaging over capacities, then over seeds. Positive means the variant is
+slower, so the removed ingredient helped.
+
+`ablation/ablation_by_capacity.csv` has columns `variant`, `workload`,
+`capacity_KiB`, `full_ms`, `variant_ms`, and `percent_change`; it keeps the
+per-capacity values used by the summary table.
+
+### 8.7 Hotspot drift (`drift/`)
+
+The drift experiment is a supplementary, pre-registered check described in
+`d_experiments/DRIFT_PREREGISTRATION.md`; it is not used to choose the
+half-life. It uses one client, 1,440 requests in three 480-request phases, 12
+resources (four per phase), a 4-resource hot group per phase (85% of requests),
+and five fixed capacities (32, 128, 256, 512, 1,024 KiB).
+
+`drift/drift_runs.csv` has one row per seed, capacity, and policy with columns
+`seed`, `capacity_KiB`, `policy`, `average_response_ms`, `request_hit_rate`,
+`byte_hit_rate`, and `origin_bytes`.
+
+`drift/drift_table.csv` aggregates those rows over seeds: `capacity_KiB`,
+`policy`, `n_seeds`, `average_response_ms_mean`, `average_response_ms_std`,
+`request_hit_rate_mean`, `byte_hit_rate_mean`. The policies are `FIFO`, `LRU`,
+`LFU`, `GDSF`, `CUSTOM` (RW-CSF at H=20), and `NO_DECAY` (H=infinity).
+
+### 8.8 Manifests and generated-input metadata
+
+Every `manifest.json` produced by `run_suite()` records at least:
 
 | Field | Meaning |
 | --- | --- |
 | `schema_version` | Manifest schema version |
-| `command` | Experiment module entry point |
-| `seed`, `counts` | Top-level seed and request counts by scale |
-| `capacities_bytes`, `capacity_unit` | Exact cache capacities and unit convention |
+| `command` | Entry point that produced the run |
+| `seed`, `counts` | Seed and per-scale request counts |
+| `capacities_bytes`, `capacity_unit` | Exact capacities and unit convention |
 | `hit_latency_ms` | Hit latency used for every run |
-| `initial_state` | Cache initialization and warm-up convention |
-| `policies`, `policy_parameters` | Policies and constructor parameters used |
-| `code_version`, `source_sha256` | Git revision when available and source-file digest |
-| `dependency_versions` | Python and installed package versions |
-| `planned_runs`, `completed_runs` | Planned and successfully completed run counts |
-| `runs` | Per-condition records described below |
+| `initial_state` | Empty cache, no warm-up |
+| `policies`, `policy_parameters` | Policies and constructor parameters (for example `CUSTOM.half_life`) |
+| `code_version` | Tested Git revision when available |
+| `source_sha256` | SHA-256 of the simulator source used for the run |
+| `experiment_source_sha256` | SHA-256 of the `d_experiments/` scripts used for the run |
+| `dependency_versions` | Python and package versions |
+| `planned_runs`, `completed_runs` | Planned and completed run counts |
+| `runs` | Per-condition records |
 | `status` | Overall run status |
 
-Each item in `runs` records `workload`, `scale`, `capacity_bytes`,
-`policy`, relative paths to the resource/request/metadata inputs and event
-output, SHA-256 hashes of both input CSV files, and a `status` value. A
-failed run also records an `error` message. This makes it possible to trace
-a summary row back to its exact input pair and event file.
+Each `runs` item records `workload`, `scale`, `capacity_bytes`, `policy`,
+relative paths to the resource/request/metadata inputs and event output,
+SHA-256 hashes of both input CSVs, and `status`. A failed run also records an
+`error` message. The drift manifest additionally records its `design`,
+`seeds`, `half_life`, `capacities_KiB`, sizes and latencies per slot,
+`input_sha256`, `preregistration`, `failed_runs`, `sizes_KiB_per_slot`,
+`latencies_ms_per_slot`, and the command.
 
-Each generated workload's metadata JSON currently records its kind, scale,
-top-level and condition seed, request/client/resource counts, active-resource
-count and byte totals, resource-size list, relative input filenames, generator
-command, and whether reference files were modified. These fields describe
-the generated input; they are not performance results.
+Each generated workload metadata JSON records these fields:
 
-The exact manifest and metadata schema should be checked again after the
-experiment runner and workload generator are integrated. The current
-scaffold is the source of truth for the fields above.
+| Field | Meaning |
+| --- | --- |
+| `kind`, `scale` | Workload family and size label |
+| `seed`, `condition_seed` | Top-level generator seed and the seed for this workload/scale condition |
+| `request_count` | Requests in the trace |
+| `client_count` | Distinct clients |
+| `resource_count` | Catalogue resources, including oversized resources |
+| `active_resource_count` | Resources actually used by the trace |
+| `active_resource_bytes` | Total bytes of active resources, counting each resource once |
+| `active_fitting_resource_bytes_at_1_MiB` | Active bytes that fit a 1,024 KiB cache |
+| `resource_sizes_bytes` | Resource sizes in catalogue order |
+| `requests_file`, `resources_file` | Relative input filenames |
+| `generator_command` | Command that generated the inputs |
+| `reference_files_modified` | Whether instructor reference files were touched (must be `false`) |
+| `sequential_repeat_probability` | Sequential-workload parameter; `null` for other kinds |
+| `mixed_oversized_interval` | Mixed-workload oversized-resource interval; `null` when unused |
 
+These fields describe the input, not performance results.
 
-## 9. Aggregate statistics and fairness conventions for experiment reports
+### 8.9 `run_all.json`
 
-For a set of n observations x_1, ..., x_n, the arithmetic mean is
-`sum(x_i) / n`. When reporting the sample standard deviation, use
+`d_experiments/run_all.py` writes `run_all.json` in its output directory. It
+records `output_dir` (absolute path of the local run), `seeds`,
+`drift_seeds`, `scale`, `half_life_override`, `drift_half_life`, the
+`stages` list with each stage name and return code, and
+`chosen_half_life` / `half_life_used`. It is an orchestration log, not a
+committed result table; absolute paths in it are machine-specific.
+
+## 9. Aggregation, dispersion, and fairness conventions
+
+For observations `x_1, ..., x_n`, the arithmetic mean is `sum(x_i) / n`.
+Reported dispersion is the sample standard deviation
 
 `s = sqrt(sum((x_i - mean)^2) / (n - 1))`
 
-with denominator n - 1 (not n). The observations and grouping level must be
-stated explicitly; for repeated experimental seeds, first compute the metric
-for each seed under the same workload/capacity/policy condition, then report
-the mean and sample standard deviation across seeds.
+with denominator `n - 1`, not `n`. For repeated seeds, first compute the
+metric within each seed for the same workload/capacity/policy condition, then
+report the mean and sample standard deviation of those per-seed values. Do not
+pool requests across seeds for the response-time mean, and do not treat a
+per-client mean as a substitute for the global request-weighted mean.
 
-For client fairness, Jain's fairness index over non-negative client values
-x_i is
+For client fairness, Jain's index over non-negative client values `x_i` is
 
 `J = (sum(x_i))^2 / (n * sum(x_i^2))`.
 
-Use the same client-level metric for every client in a comparison (for
-example, each client's request hit rate). If all client values are zero, the denominator is zero and the index is
-undefined. Use the explicit missing-value convention confirmed by the team
-and D's output implementation (for example, N/A in a report); do not silently
-replace an undefined value with 0 or 1. The precise fairness metric,
-worst-client definition, and final CSV column names must be aligned with D's
-implementation and the full #13 requirements before this appendix is marked
-complete.
+The committed fairness table uses each client's request hit rate as `x_i`,
+computes `J` per seed, and averages over seeds. If all `x_i` are zero, the
+denominator is zero and the value is undefined (`nan` in CSV, `N/A` in the
+report); do not silently replace it with 0 or 1. The worst client is the
+client with the largest per-client average response time in that seed; the
+reported `worst_client_id` is the client most often worst across seeds, with
+lexicographic tie-breaking. The exact implementation is in
+`d_experiments/analyze_fairness.py`.
