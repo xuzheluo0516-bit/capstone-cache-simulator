@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "d_experiments"))
+import analyze_fairness  # noqa: E402
 from analyze_fairness import fairness_tables, jain, read_client_rows  # noqa: E402
 from common import aggregate_summary, stdev, write_manifest  # noqa: E402
 
@@ -133,6 +134,15 @@ class FairnessSeedSelectionTests(unittest.TestCase):
             self.assertEqual({row["seed"] for row in rows}, {"1"})
             with self.assertRaises(FileNotFoundError):
                 read_client_rows(root, [99])
+            with self.assertRaises(ValueError):
+                read_client_rows(root, [1, 1])
+
+    def test_cli_rejects_duplicate_seeds(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit) as cm:
+                analyze_fairness.main(
+                    ["--results-dir", tmp, "--seeds", "1", "1", "2"])
+        self.assertNotEqual(cm.exception.code, 0)
 
 
 class RunMainGuardTests(unittest.TestCase):

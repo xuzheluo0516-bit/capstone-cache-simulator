@@ -82,8 +82,10 @@ class OrchestrationTests(unittest.TestCase):
             if name in ("run_main.py", "run_ablation.py"):
                 self.assertEqual(float(c[c.index("--half-life") + 1]), 100.0)
             elif name == "run_drift.py":
-                # The confirmatory drift test keeps its preregistered H.
+                # The confirmatory drift test keeps its preregistered H and seeds.
                 self.assertEqual(float(c[c.index("--half-life") + 1]), 20.0)
+                self.assertEqual(c[c.index("--seeds") + 1:],
+                                 [str(seed) for seed in run_all.DRIFT_SEEDS])
         fairness = next(c for c in calls if Path(c[1]).name == "analyze_fairness.py")
         self.assertEqual(fairness[fairness.index("--seeds") + 1:],
                          ["20261111", "20261112"])

@@ -5,8 +5,9 @@ The half-life H is read from the h_choice.json written by the tuning stage
 (key chosen_half_life) and passed to main and ablation; it is never
 hard-coded here. --half-life overrides it for main and ablation (the tuning
 stage still runs and its choice is recorded, so the override is visible).
-The drift experiment always keeps its preregistered H=20; overriding H for the
-main comparison must not silently change that confirmatory test.
+The drift experiment always keeps its preregistered H=20 and its five preregistered
+seeds; --seeds only affects main, fairness and ablation. Overriding H or seeds for
+the main comparison must not silently change that confirmatory test.
 
 Everything is written under --output-dir (default data/experiments/run_all),
 never into the committed data/results/. If a stage fails the script stops and
@@ -27,6 +28,7 @@ import sys
 from pathlib import Path
 
 from common import validate_formal_seeds, validate_half_life
+from run_drift import DEFAULT_SEEDS as DRIFT_SEEDS
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -63,7 +65,7 @@ def stage_ablation(out: Path, args, half_life: float) -> list[str]:
 
 def stage_drift(out: Path, args) -> list[str]:
     return [sys.executable, script("run_drift.py"), "--output-dir", str(out / "drift"),
-            "--half-life", repr(DRIFT_HALF_LIFE), "--seeds", *map(str, args.seeds)]
+            "--half-life", repr(DRIFT_HALF_LIFE), "--seeds", *map(str, DRIFT_SEEDS)]
 
 
 def stage_plots(out: Path, args) -> list[str]:
@@ -92,7 +94,8 @@ def run_pipeline(args, runner=subprocess.run) -> int:
     out = args.output_dir.resolve()
     check_output_dir(out)
     out.mkdir(parents=True, exist_ok=True)
-    log: dict = {"output_dir": str(out), "seeds": list(args.seeds), "scale": args.scale,
+    log: dict = {"output_dir": str(out), "seeds": list(args.seeds),
+                 "drift_seeds": list(DRIFT_SEEDS), "scale": args.scale,
                  "half_life_override": args.half_life,
                  "drift_half_life": DRIFT_HALF_LIFE, "stages": []}
 
@@ -132,7 +135,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--seeds", type=int, nargs="+", default=list(DEFAULT_SEEDS),
-                        help="formal seeds (at least 2; the tuning seed is refused)")
+                        help="formal seeds for main/fairness/ablation (at least 2; the tuning "
+                             "seed is refused); drift always uses its five preregistered seeds")
     parser.add_argument("--scale", default="large", choices=("small", "medium", "large"),
                         help="trace size for main and ablation")
     parser.add_argument("--half-life", type=float, default=None,

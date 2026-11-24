@@ -96,6 +96,8 @@ def read_client_rows(results_dir: Path, seeds: Sequence[int] | None = None) -> l
     if seeds is None:
         paths = sorted(results_dir.glob("seed_*/clients.csv"))
     else:
+        if len(set(seeds)) != len(seeds):
+            raise ValueError("seeds must be unique")
         paths = [results_dir / f"seed_{seed}" / "clients.csv" for seed in seeds]
     rows: list[dict] = []
     for path in paths:
@@ -106,7 +108,7 @@ def read_client_rows(results_dir: Path, seeds: Sequence[int] | None = None) -> l
     return rows
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--results-dir", type=Path, required=True)
     parser.add_argument("--workload", default="mixed")
@@ -115,7 +117,9 @@ def main() -> int:
         "--seeds", type=int, nargs="+", default=None,
         help="only aggregate these seeds (default: every seed_*/clients.csv found)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.seeds is not None and len(set(args.seeds)) != len(args.seeds):
+        parser.error("--seeds must not contain duplicates")
     fairness, per_client = fairness_tables(
         read_client_rows(args.results_dir, args.seeds), args.workload, args.baseline
     )
