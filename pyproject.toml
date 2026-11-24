@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 [project.optional-dependencies]
 # Development-only dependency; the simulator itself uses the standard library.
 dev = ["pytest>=8"]
-# Optional plotting dependency for experiment figures; not required to run the simulator.
+# Optional plotting dependency for d_experiments/make_plots.py.
 plot = ["matplotlib>=3.8"]
 
 [tool.setuptools.packages.find]
