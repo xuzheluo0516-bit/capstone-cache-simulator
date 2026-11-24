@@ -1,0 +1,18 @@
+{
+  "protocol": "mean over capacities per workload, then mean over the three workloads of average_response_ms; smallest wins; tie -> smaller H",
+  "candidates": [
+    5,
+    20,
+    100,
+    500
+  ],
+  "seed": 31415,
+  "scores_ms": {
+    "5": 88.35180555555554,
+    "20": 87.97532407407408,
+    "100": 88.2437962962963,
+    "500": 88.21064814814815
+  },
+  "chosen_half_life": 20,
+  "source_sha256": "2ae10852d1388c264f04d3666f724c659c0e826a018c29e7691e90ce1b7b1d0f"
+}

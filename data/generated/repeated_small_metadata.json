@@ -1,0 +1,33 @@
+{
+  "active_fitting_resource_bytes_at_1_MiB": 376832,
+  "active_resource_bytes": 376832,
+  "active_resource_count": 9,
+  "client_count": 1,
+  "condition_seed": 20261648,
+  "generator_command": "python -m cache_simulator.workloads --output-dir data/generated --seed 20261111",
+  "kind": "repeated",
+  "mixed_oversized_interval": null,
+  "reference_files_modified": false,
+  "request_count": 72,
+  "requests_file": "repeated_small_requests.csv",
+  "resource_count": 13,
+  "resource_sizes_bytes": [
+    8192,
+    12288,
+    16384,
+    20480,
+    24576,
+    32768,
+    40960,
+    49152,
+    65536,
+    98304,
+    131072,
+    393216,
+    46137344
+  ],
+  "resources_file": "repeated_small_resources.csv",
+  "scale": "small",
+  "seed": 20261111,
+  "sequential_repeat_probability": null
+}

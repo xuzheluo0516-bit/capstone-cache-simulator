@@ -6,3 +6,6 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+data/experiments/
+data/generated/*_medium_*
+data/generated/*_large_*
