@@ -181,6 +181,15 @@ def per_client_bars(per_client, capacity, path) -> Path:
     return Path(path)
 
 
+H_REFERENCE_POLICIES = ("FIFO", "LRU", "LFU", "GDSF")
+
+
+def reference_policies(rows) -> tuple[str, ...]:
+    """Baselines planned for the H-sensitivity plot and present in the table."""
+    present = {r["policy"] for r in rows}
+    return tuple(policy for policy in H_REFERENCE_POLICIES if policy in present)
+
+
 def h_sensitivity(tuning_dir: Path, path: Path) -> None:
     rows = read_csv(tuning_dir / "summary.csv")
     workloads = workloads_in(rows)
@@ -196,7 +205,7 @@ def h_sensitivity(tuning_dir: Path, path: Path) -> None:
               for h in h_values]
         ax.plot(h_values, ys, color=COLORS["CUSTOM"], marker=MARKERS["CUSTOM"], lw=2.4,
                 markersize=7, markeredgecolor=SURFACE, zorder=3)
-        for policy in ("LRU", "LFU", "GDSF"):
+        for policy in reference_policies(rows):
             if (policy, workload) in per:
                 v = per[(policy, workload)]
                 ax.axhline(sum(v) / len(v), color=COLORS[policy], lw=1.6, ls="--", zorder=2)
@@ -214,8 +223,8 @@ def h_sensitivity(tuning_dir: Path, path: Path) -> None:
     handles = [plt.Line2D([0], [0], color=COLORS["CUSTOM"], marker="P", lw=2,
                           label="RW-CSF (by H)")]
     handles += [plt.Line2D([0], [0], color=COLORS[p], lw=1.6, ls="--", label=LABELS[p])
-                for p in ("LRU", "LFU", "GDSF")]
-    fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=9)
+                for p in reference_policies(rows)]
+    fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=9)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(path, dpi=200)
     plt.close(fig)

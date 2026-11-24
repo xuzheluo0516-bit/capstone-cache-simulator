@@ -6,7 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "d_experiments"))
 from make_plots import (  # noqa: E402
-    POLICIES, per_client_bars, per_client_figure_path, single_workload,
+    POLICIES, per_client_bars, per_client_figure_path, reference_policies,
+    single_workload,
 )
 
 
@@ -40,6 +41,11 @@ class WorkloadLabelTests(unittest.TestCase):
             returned = per_client_bars(rows, 32.0, path)
             self.assertEqual(returned, path)
             self.assertTrue(path.is_file())
+
+    def test_h_sensitivity_includes_fifo_reference(self):
+        rows = [{"policy": policy, "workload": "mixed", "average_response_ms": "1"}
+                for policy in ("RWCSF_H20", "FIFO", "LRU", "LFU", "GDSF")]
+        self.assertIn("FIFO", reference_policies(rows))
 
 
 if __name__ == "__main__":

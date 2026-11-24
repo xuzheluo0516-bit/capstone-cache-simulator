@@ -38,6 +38,7 @@ from cache_simulator.metrics import MetricsAccumulator
 from cache_simulator.rwcsf import RWCSFPolicy
 
 DEFAULT_SEEDS = (20261111, 20261112, 20261113, 20261114, 20261115)
+PREREGISTERED_HALF_LIFE = 20.0
 PHASES = 3
 PHASE_LEN = 480
 HOT_PROB = 0.85
@@ -226,15 +227,29 @@ def check_predictions(table: list[dict]) -> dict[str, dict]:
     }
 
 
+def validate_preregistered(parser, seeds, half_life: float) -> None:
+    """Refuse direct runs that no longer test the preregistered design."""
+    if half_life != PREREGISTERED_HALF_LIFE:
+        parser.error(
+            f"the confirmatory drift test fixes H at {PREREGISTERED_HALF_LIFE:g}; "
+            "do not pass a different --half-life")
+    if set(seeds) != set(DEFAULT_SEEDS):
+        parser.error(
+            "the confirmatory drift test uses the five preregistered seeds "
+            + ", ".join(str(seed) for seed in DEFAULT_SEEDS))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--half-life", type=float, default=20.0,
-                        help="the H chosen by run_h_tuning.py (do not retune)")
-    parser.add_argument("--seeds", type=int, nargs="+", default=list(DEFAULT_SEEDS))
+    parser.add_argument("--half-life", type=float, default=PREREGISTERED_HALF_LIFE,
+                        help="fixed at 20 by DRIFT_PREREGISTRATION.md; other values are refused")
+    parser.add_argument("--seeds", type=int, nargs="+", default=list(DEFAULT_SEEDS),
+                        help="fixed at the five preregistered seeds; other sets are refused")
     args = parser.parse_args()
     validate_formal_seeds(parser, args.seeds)
     validate_half_life(parser, args.half_life)
+    validate_preregistered(parser, args.seeds, args.half_life)
     rows = run_all(args.output_dir, args.seeds, args.half_life)
     table = aggregate(rows)
     write_csv(args.output_dir / "drift_table.csv", TABLE_FIELDS, table)

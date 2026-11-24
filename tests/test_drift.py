@@ -1,4 +1,5 @@
 import math
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -46,6 +47,25 @@ class TraceTests(unittest.TestCase):
     def test_tuning_seed_refused(self):
         self.assertEqual(TUNING_SEED, 31415)
         self.assertNotIn(31415, rd.DEFAULT_SEEDS)
+
+
+class PreregistrationTests(unittest.TestCase):
+    def run_cli(self, *args):
+        script = Path(__file__).resolve().parents[1] / "d_experiments" / "run_drift.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            return subprocess.run(
+                [sys.executable, str(script), "--output-dir", tmp, *args],
+                capture_output=True, text=True)
+
+    def test_direct_run_refuses_other_half_life(self):
+        result = self.run_cli("--half-life", "5")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("fixes H at 20", result.stderr)
+
+    def test_direct_run_refuses_subset_of_preregistered_seeds(self):
+        result = self.run_cli("--seeds", "20261111", "20261112")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("five preregistered seeds", result.stderr)
 
 
 class SimulationTests(unittest.TestCase):
