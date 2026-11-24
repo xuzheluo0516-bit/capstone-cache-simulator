@@ -1,8 +1,12 @@
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "d_experiments"))
+import common  # noqa: E402
 from common import build_registry, percent_change  # noqa: E402
 from run_ablation import VARIANTS, build_tables  # noqa: E402
 
@@ -66,6 +70,32 @@ class TableTests(unittest.TestCase):
         self.assertEqual(params["ABL_NO_SIZE"], {"half_life": 20, "use_size": False})
         self.assertEqual(params["ABL_NO_DECAY"], {"half_life": float("inf")})
         self.assertTrue(all(name in registry for name in params))
+
+
+class FailedRunManifestTests(unittest.TestCase):
+    def test_failed_seed_leaves_strict_json_manifest(self) -> None:
+        def failing_run_suite(seed_dir, **kwargs):
+            seed_dir.mkdir(parents=True, exist_ok=True)
+            (seed_dir / "manifest.json").write_text(
+                json.dumps({"status": "running",
+                            "policy_parameters": {"ABL_NO_DECAY": {"half_life": float("inf")}},
+                            "runs": [{"status": "failed", "error": "RuntimeError: boom"}]}),
+                encoding="utf-8")
+            raise RuntimeError("boom")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(common, "run_suite", failing_run_suite):
+                with self.assertRaises(RuntimeError):
+                    common.run_seeds(Path(tmp), [1], ["ABL_NO_DECAY"], {}, {}, "small")
+            text = (Path(tmp) / "seed_1" / "manifest.json").read_text(encoding="utf-8")
+
+        def reject(constant):
+            raise ValueError(f"non-strict JSON constant {constant}")
+
+        manifest = json.loads(text, parse_constant=reject)
+        self.assertEqual(manifest["policy_parameters"]["ABL_NO_DECAY"]["half_life"], "inf")
+        self.assertEqual(manifest["runs"][0]["status"], "failed")
+        self.assertIn("experiment_source_sha256", manifest)
 
 
 if __name__ == "__main__":

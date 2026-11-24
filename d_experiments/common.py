@@ -66,12 +66,18 @@ def run_seeds(
     for seed in seeds:
         seed_dir = output_dir / f"seed_{seed}"
         kwargs = {} if capacities_bytes is None else {"capacities_bytes": capacities_bytes}
-        manifest = run_suite(
-            seed_dir, seed=seed, counts={scale: DEFAULT_COUNTS[scale]},
-            policies=list(policies), registry=registry,
-            policy_parameters={k: v for k, v in parameters.items() if k in policies},
-            **kwargs,
-        )
+        try:
+            manifest = run_suite(
+                seed_dir, seed=seed, counts={scale: DEFAULT_COUNTS[scale]},
+                policies=list(policies), registry=registry,
+                policy_parameters={k: v for k, v in parameters.items() if k in policies},
+                **kwargs,
+            )
+        except Exception:
+            # run_suite writes a failed manifest itself; rewrite it so a bare
+            # Infinity from ABL_NO_DECAY never reaches a strict JSON reader.
+            rewrite_manifest(seed_dir / "manifest.json")
+            raise
         write_manifest(seed_dir / "manifest.json", manifest)
         with (seed_dir / "summary.csv").open(newline="", encoding="utf-8") as handle:
             rows.extend(csv.DictReader(handle))
@@ -89,6 +95,15 @@ def _json_safe(value):
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
     return value
+
+
+def rewrite_manifest(path: Path) -> None:
+    """Re-serialize an existing manifest as strict JSON, keeping its content."""
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    write_manifest(path, manifest)
 
 
 def experiment_source_sha256() -> str:

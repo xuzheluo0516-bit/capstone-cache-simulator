@@ -27,6 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from cache_simulator.workloads import CAPACITIES_BYTES
 from common import validate_formal_seeds, validate_half_life
 from run_drift import DEFAULT_SEEDS as DRIFT_SEEDS
 
@@ -36,6 +37,7 @@ DEFAULT_OUTPUT = Path("data/experiments/run_all")
 DEFAULT_SEEDS = (20261111, 20261112, 20261113, 20261114, 20261115)
 DRIFT_HALF_LIFE = 20.0  # fixed by DRIFT_PREREGISTRATION.md
 PROTECTED = (Path("data/results"),)
+BAR_CAPACITIES_KIB = tuple(size // 1024 for size in CAPACITIES_BYTES)
 
 
 def script(name: str) -> str:
@@ -86,6 +88,13 @@ def check_output_dir(out: Path) -> None:
         target = (REPO / protected).resolve()
         if resolved == target or target in resolved.parents:
             raise SystemExit(f"refusing to write into {protected}: it holds the committed results")
+
+
+def validate_bar_capacity(parser, capacity: int) -> None:
+    """Reject a bar capacity that the plotted main results will not contain."""
+    if capacity not in BAR_CAPACITIES_KIB:
+        allowed = ", ".join(str(value) for value in BAR_CAPACITIES_KIB)
+        parser.error(f"--bar-capacity must be one of the main-grid capacities: {allowed} KiB")
 
 
 def run_pipeline(args, runner=subprocess.run) -> int:
@@ -151,6 +160,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     validate_formal_seeds(parser, args.seeds)
     validate_half_life(parser, args.half_life)
+    validate_bar_capacity(parser, args.bar_capacity)
     return run_pipeline(args)
 
 

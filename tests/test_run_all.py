@@ -49,6 +49,13 @@ class CliTests(unittest.TestCase):
                 run_all.main(["--half-life", bad])
             self.assertNotEqual(cm.exception.code, 0)
 
+    def test_bar_capacity_must_be_on_the_main_grid(self):
+        for bad in ("64", "0", "-1", "513"):
+            with self.assertRaises(SystemExit) as cm:
+                run_all.main(["--bar-capacity", bad])
+            self.assertNotEqual(cm.exception.code, 0)
+        run_all.validate_bar_capacity(run_all.build_parser(), 512)
+
     def test_committed_results_dir_refused(self):
         with self.assertRaises(SystemExit):
             run_all.check_output_dir(ROOT / "data" / "results")
