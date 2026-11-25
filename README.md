@@ -2,12 +2,12 @@
 
 F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implementation and Experimentation**
 
-本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已建立仓库、上传参考文件，并完成 M1 的 Python 输入解析与共享缓存引擎基础；缓存策略、指标、CLI 和实验工具仍按后续 issue 实现。
+本仓库用于团队 Capstone 项目。以下清单根据 2026-11-03 阅读的完整 Brightspace 项目说明及 Reference Trace 页面整理；课程页面是最终依据。当前已实现输入解析、共享缓存引擎、FIFO/LRU/LFU 三标准策略、指标与 CSV 输出、参考对账、CLI，以及 GDSF 基线与 RW-CSF 自定义策略；批量实验脚本、正式结果与图表已随 PR #32 合入 main。
 
 ## 组织与截止时间
 
 - 团队：**4–5 人**；通过 Brightspace → More Tools → Groups 自行加入小组。
-- 编程语言：自由选择，目前未选定。
+- 编程语言：Python（`>= 3.11`；CI 矩阵 3.11 / 3.12 / 3.13）。
 - 截止时间：**2026 年 12 月 4 日（星期五）17:59，上海时间（UTC+8）**。
 - 提交平台：**Brightspace**。GitHub 仓库本身不能替代最终提交。
 
@@ -20,14 +20,17 @@ F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implement
 1. 资源元数据：资源标识、大小、源站获取延迟。
 2. HTTP 请求记录：按时间顺序排列的多个客户端的请求。
 
-必须实现以下四种策略：
+模拟器已实现三个标准策略、一个 GDSF 对比基线和一个自定义策略 RW-CSF（CLI 名称 `CUSTOM`）：
 
-| 策略 | 规则 |
-| --- | --- |
-| FIFO | 淘汰最早进入缓存的资源；命中不改变插入顺序。 |
-| LRU | 淘汰最久没有访问的资源。 |
-| LFU | 按资源自插入以来的访问次数淘汰最少使用者；次数相同时淘汰最久未访问者。 |
-| 自定义策略 | 自行设计、实现、解释并与以上三种策略比较，可考虑大小、频率、近期访问、获取延迟或客户端公平性等因素。 |
+| CLI 名称 | 策略 | 规则 |
+| --- | --- | --- |
+| `FIFO` | FIFO | 淘汰最早进入缓存的资源；命中不改变插入顺序。 |
+| `LRU` | LRU | 淘汰最久没有访问的资源。 |
+| `LFU` | LFU | 按资源自插入以来的访问次数淘汰最少使用者；次数相同时淘汰最久未访问者。 |
+| `GDSF` | GDSF 基线 | 贪心双大小基线，使用累计频率与膨胀值老化，用于与自定义策略对比。 |
+| `CUSTOM` | RW-CSF（自定义） | 按衰减频率 × 命中收益 ÷ 资源大小排序淘汰；设计与参数见 [docs/custom-policy-design.md](docs/custom-policy-design.md)。 |
+
+> 说明：课程要求的"自定义策略"即 `CUSTOM`（RW-CSF）；`GDSF` 是对比基线。自定义策略不必在所有负载上胜过 FIFO/LRU/LFU。
 
 空间不足时，应连续淘汰所需数量的资源，以容纳新资源。超过缓存总容量的资源始终从源站获取，不能存入缓存。
 
@@ -86,20 +89,50 @@ F26 Introduction to Computer Science — **Shared Web Cache Simulator: Implement
 | LRU | 3 | 12 | 20.00% | 403,456 | 92.33 |
 | LFU | 4 | 11 | 26.67% | 370,688 | 84.33 |
 
-上表根据提供的预期输出汇总，并与 answer key 一致；这是验证目标，尚未运行项目模拟器。
+上表与 answer key 一致，可由 `python -m cache_simulator.reference_validation` 逐字段复现；该对账仅覆盖这三个标准策略。
 
-### 核心模块开发与测试
+### 目录结构
 
-输入解析和共享缓存引擎位于 `src/cache_simulator/`，契约见
-[docs/input-and-engine-contract.md](docs/input-and-engine-contract.md)。当前测试仅使用
-Python 标准库：
-
-```powershell
-python -m unittest discover -s tests -t . -v
+```
+pyproject.toml             # 构建、Python 版本与依赖配置
+requirements.txt           # 薄安装引用（-e .[dev,plot]）
+Makefile                   # 类 Unix 构建目标
+make.ps1                   # Windows PowerShell 薄映射
+src/cache_simulator/
+├── models.py                # ResourceKey / Resource / Request
+├── engine.py                # SharedCacheEngine and RequestResult events
+├── policies.py              # FIFO / LRU / LFU
+├── gdsf.py                  # GDSF comparison baseline
+├── rwcsf.py                 # RW-CSF custom policy (CUSTOM)
+├── input_parser.py          # CSV parsing and validation
+├── metrics.py               # Global and per-client metrics
+├── output.py                # Ten-column CSV serialization
+├── reference_validation.py  # Semantic expected-output comparator
+├── workloads.py             # Reproducible workload generator
+├── experiments.py           # Batch experiment scaffold
+├── cli.py                   # Command-line entry point
+└── __main__.py              # Supports python -m cache_simulator
+tests/                       # unittest suite
+data/reference/              # Reference inputs and expected outputs
+data/generated/              # Generated workload traces (small committed; medium/large ignored)
+data/experiments/            # Batch experiment outputs (git-ignored)
+data/results/                # Formal tables, manifests and figures (PR #32)
+d_experiments/               # H tuning, main/ablation/drift experiments and plotting (PR #32)
+docs/                        # Contracts, data dictionary, design doc, guidelines
 ```
 
-解析器已用参考文件验证资源数为 21、请求数为 15。缓存引擎使用可插拔策略接口；
-FIFO/LRU/LFU、指标汇总和参考输出端到端比较分别由后续 issue 完成。
+### 安装
+
+运行时零第三方依赖（仅 Python 标准库）。在仓库根目录执行：
+
+| 用途 | 命令 |
+| --- | --- |
+| 核心运行 | `python -m pip install -e .` |
+| 开发测试（pytest） | `python -m pip install -e ".[dev]"` |
+| 实验绘图（matplotlib，可选） | `python -m pip install -e ".[plot]"` |
+| 完整开发环境 | `python -m pip install -e ".[dev,plot]"`（或 `python -m pip install -r requirements.txt`） |
+
+构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `figures` / `clean`。`figures` 从 `data/results/main` 与 `data/results/h-tuning` 重新生成 `data/results/figures/` 下的 6 张 PNG。
 
 ### 命令行入口
 
@@ -111,10 +144,19 @@ python -m cache_simulator --resources data/reference/resources.csv \
   --hit-latency 5 --policy LFU
 ```
 
-`--policy` 支持 `FIFO`、`LRU`、`LFU`；接口契约见
+`--policy` 支持 `FIFO`、`LRU`、`LFU`、`GDSF`、`CUSTOM`；接口契约见
 [docs/interface_v1.md](docs/interface_v1.md)。
 
+### 设计决策
+
+- **模块边界**：Engine 只产出逐请求结果事件，不做解析、指标累计或输出格式化；Metrics 是统计唯一来源，单次事实只记录一次；Output 只做只读 CSV 序列化；Strategy 只维护淘汰所需状态。
+- **运行时依赖**：模拟器仅用标准库；`pytest` 为开发依赖，`matplotlib` 为可选绘图依赖，均不进入核心运行时。
+- **Interface v1 已冻结**：策略接口与 Engine 结构不随意改动；自定义策略当前不做准入拒绝（`should_admit` 恒返回 `True`）。
+- **参考对账范围**：`reference_validation` 目前只覆盖 `FIFO`、`LRU`、`LFU`（参考 trace 仅含这三个标准策略的预期输出）。`GDSF` 与 `CUSTOM` 尚未经过参考对账，其表现以正式实验结果为准。
+
 ## 实验要求
+
+可复现工作负载、容量档位及跑批命令见 [实验说明](docs/experiments.md) 和 [HOWTO](HOWTO.md)。
 
 至少评估三类工作负载：
 
@@ -139,11 +181,11 @@ python -m cache_simulator --resources data/reference/resources.csv \
 
 每组在 Brightspace 提交一个可复现的 ZIP，其中包括：
 
-- [ ] 全部模拟器源代码。
-- [ ] 可执行文件，或 Makefile / 等效构建配置与构建说明。
-- [ ] README：项目结构、实现与设计决策。
-- [ ] HOWTO：编译、必要安装步骤、运行方式、输入文件与命令行参数。
-- [ ] 实验所需输入、实验结果、性能测量和比较图表；包含复现实验所需全部材料。
+- [x] 全部模拟器源代码（核心模拟器、实验脚本与结果均已合入 main）。
+- [x] 可执行文件，或 Makefile / 等效构建配置与构建说明。
+- [x] README：项目结构、实现与设计决策。
+- [x] HOWTO：编译、必要安装步骤、运行方式、输入文件与命令行参数。
+- [x] 实验所需输入、实验结果、性能测量和比较图表；包含复现实验所需全部材料。
 - [ ] **3–4 页技术报告**：自定义策略、数据结构、实验方法、比较图表、发现与结论。
 
 另需录制演示视频，上传 **YouTube**，并在 Brightspace 提交链接（可设为 Unlisted）：
@@ -169,12 +211,13 @@ python -m cache_simulator --resources data/reference/resources.csv \
 
 - [x] 阅读完整项目说明及参考测试说明。
 - [x] 创建私有 GitHub 仓库并整理要求。
-- [ ] 确认 4–5 人小组、分工与开发语言。
+- [x] 确认开发语言为 Python（`>=3.11`）；小组名单与分工见 #1。
+- [ ] 确认 4–5 人小组与最终分工（#1）。
 - [x] 获取并上传参考文件，确认 CSV 字段与输出格式。
-- [ ] 实现输入解析、共享缓存状态及 FIFO、LRU、LFU。
-- [ ] 以参考数据验证逐条行为和全部统计指标。
-- [ ] 设计自定义策略并明确优化目标。
-- [ ] 准备至少三类工作负载及多种容量，完成公平比较。
+- [x] 实现输入解析、共享缓存状态及 FIFO、LRU、LFU。
+- [x] 以参考数据验证逐条行为和全部统计指标。
+- [x] 设计自定义策略并明确优化目标。
+- [x] 准备至少三类工作负载及多种容量，完成公平比较。
 - [ ] 生成图表，分析客户端公平性与策略取舍。
 - [ ] 完成 README、HOWTO、3–4 页报告及可复现 ZIP。
 - [ ] 全员录制视频，上传 YouTube，在截止前提交 ZIP 与视频链接。
