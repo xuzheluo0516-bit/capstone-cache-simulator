@@ -360,7 +360,7 @@ Jain's index over the clients' request hit rates, then aggregates over seeds:
 | `n_seeds` | Number of seeds with client rows for the condition |
 | `jain_mean`, `jain_std` | Mean and sample standard deviation of the per-seed Jain index over client request hit rates |
 | `worst_client_ms_mean` | For each seed, the maximum per-client average response time; then the mean across seeds |
-| `worst_client_id` | Client most often attaining that per-seed maximum; ties are resolved by lexicographic order |
+| `worst_client_id` | Client most often attaining that per-seed maximum; a within-seed response-time tie goes to the lexicographically largest client ID, while a tie in the across-seed count goes to the lexicographically smallest ID |
 
 Jain's index is in `[1/n, 1]` for `n` clients; 1 means equal client hit rates.
 If every client hit rate is zero, the index is undefined and stored as `nan`.
@@ -416,8 +416,11 @@ per-capacity values used by the summary table.
 The drift experiment is a supplementary, pre-registered check described in
 `d_experiments/DRIFT_PREREGISTRATION.md`; it is not used to choose the
 half-life. It uses one client, 1,440 requests in three 480-request phases, 12
-resources (four per phase), a 4-resource hot group per phase (85% of requests),
-and five fixed capacities (32, 128, 256, 512, 1,024 KiB).
+resources (four per phase), and five fixed capacities (32, 128, 256, 512,
+1,024 KiB). In each phase, 85% of requests are drawn uniformly from that
+phase's 4-resource hot group, and the other 15% are drawn uniformly from all
+12 resources. Because that background draw also covers the hot group, the
+expected hot-group share is about 90% (0.85 + 0.15 × 4/12), not 85%.
 
 `drift/drift_runs.csv` has one row per seed, capacity, and policy with columns
 `seed`, `capacity_KiB`, `policy`, `average_response_ms`, `request_hit_rate`,
@@ -515,7 +518,8 @@ The committed fairness table uses each client's request hit rate as `x_i`,
 computes `J` per seed, and averages over seeds. If all `x_i` are zero, the
 denominator is zero and the value is undefined (`nan` in CSV, `N/A` in the
 report); do not silently replace it with 0 or 1. The worst client is the
-client with the largest per-client average response time in that seed; the
-reported `worst_client_id` is the client most often worst across seeds, with
-lexicographic tie-breaking. The exact implementation is in
-`d_experiments/analyze_fairness.py`.
+client with the largest per-client average response time in that seed; a
+within-seed tie is resolved to the lexicographically largest client ID. The
+reported `worst_client_id` is the client most often worst across seeds; a tie
+in that across-seed count is resolved to the lexicographically smallest ID.
+The exact implementation is in `d_experiments/analyze_fairness.py`.

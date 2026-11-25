@@ -80,9 +80,11 @@ The ablation removes one ingredient of RW-CSF at the fixed `H = 20`:
 
 The hotspot-drift check is supplementary and pre-registered in
 `d_experiments/DRIFT_PREREGISTRATION.md`. It is not used to choose `H`. It
-uses three 480-request phases, a four-resource hot group per phase (85% of
-requests), 12 resources, one client, and capacities 32–1,024 KiB. Its
-predictions and outcomes are reported separately from the main comparison.
+uses three 480-request phases, 12 resources, one client, and capacities
+32–1,024 KiB. In each phase, 85% of requests target that phase's four-resource
+hot group and 15% are drawn from all 12 resources, so the expected hot-group
+share is about 90%. Its predictions and outcomes are reported separately from
+the main comparison.
 
 ## 5. Result files and reproducibility
 
@@ -140,8 +142,10 @@ instead of treating the absolute value as a quality score.
 
 The worst client is the client with the largest per-client average response
 time in a seed. `fairness.csv` reports the mean of that per-seed maximum as
-`worst_client_ms_mean` and the client most often worst as `worst_client_id`,
-with lexicographic tie-breaking. `per_client.csv` reports each client's mean
+`worst_client_ms_mean` and the client most often worst as `worst_client_id`.
+A within-seed response-time tie goes to the lexicographically largest client
+ID; an across-seed tie in how often a client is worst goes to the
+lexicographically smallest ID. `per_client.csv` reports each client's mean
 response time and its difference from the same client under `LRU`; a negative
 difference means the policy is faster for that client.
 
