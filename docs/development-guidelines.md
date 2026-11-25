@@ -62,7 +62,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 | `data/reference/`      | Present                | 参考 trace 的资源、请求、预期 FIFO/LRU/LFU 输出与答案             |
 | `docs/`                | Present                | 接口契约、数据字典、标准策略验证、自定义策略设计文档与开发规范        |
 | `data/generated/`      | Present                | 工作负载生成器产出的资源 / 请求 / 元数据；small 入库，medium/large 被忽略 |
-| `data/experiments/`    | Present（git-ignored）  | 批量实验产物输出目录，按 `.gitignore` 忽略，不入库                 |
+| `data/experiments/`    | Present（git-ignored）  | 批量实验 scratch 输出目录，按 `.gitignore` 忽略，不入库、不进入最终 ZIP |
 | `data/tuning/`         | Present                | 调参专用 trace（种子 31415），仅用于选 H，不参与正式结果            |
 | `data/results/`        | Present（#33 已验收）  | D 的正式汇总表、manifest 与 6 张图；作为 #13/#15/#17 的输入 |
 | `d_experiments/`       | Present（#33 已验收）  | H 选取、主实验、消融、漂移、公平性与绘图的一键脚本                |
@@ -75,6 +75,14 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 > 的本地产物，已被
 > `.gitignore`
 > 忽略，不属于版本控制内容。
+
+### 1.3 构建与实验入口
+
+- `make install` / `.\make.ps1 install` 安装 `.[dev,plot]`；仅需运行时可用 `pip install -e .`。
+- `make experiments` / `.\make.ps1 experiments` 调用 `python d_experiments/run_all.py`，使用默认输出 `data/experiments/run_all/` 和默认 512 KiB 图表容量；不覆盖 `data/results/`。
+- `make experiments-small` / `.\make.ps1 experiments-small` 调用 `python d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small`，使用独立 scratch 目录，避免覆盖 full 实验的 `data/experiments/run_all/`。
+- `data/results/` 是已提交的正式结果；`data/experiments/` 是 scratch 产物，不进入最终 ZIP。
+- `figures` 目标按 Option A 实现：默认输出 scratch `data/experiments/figures/` 并显式使用 512 KiB；只有显式设置 `FIGURES_DIR=data/results/figures` 才会刷新正式图表，存在覆盖风险。
 
 ## 2. Feature 分支与 PR 工作流程
 
@@ -280,9 +288,7 @@ CI 会依次执行单元测试、参考对账与编译检查。任何 “测试�
 
 2. 报告统稿人、视频剪辑人、最终提交人与复核人的最终确认。
 
-3. `data/results/` 与 `d_experiments/` 已随 PR #32 合入并经 #33 验收；`make figures` 使用 `data/results/main`、`data/results/h-tuning` 生成 `data/results/figures/`。
-
-4. 实验归档约定以 E5/E6 为准；`data/results/`（表、manifest、图）与 `d_experiments/`（脚本）已随 PR #32 合入并经 #33 验收。
+3. 实验归档约定以 E5/E6 为准；`data/results/`（表、manifest、图）与 `d_experiments/`（脚本）已随 PR #32 合入并经 #33 验收。
 
 ## 11. 既有阶段目标
 

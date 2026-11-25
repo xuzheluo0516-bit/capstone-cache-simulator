@@ -46,7 +46,7 @@ src/cache_simulator/
 ├── output.py                # Ten-column CSV serialization
 ├── reference_validation.py   # Semantic expected-output comparator
 ├── workloads.py             # Reproducible workload generator
-├── experiments.py           # Batch experiment scaffold
+├── experiments.py           # Legacy batch scaffold (not the formal experiment entry)
 ├── cli.py                   # Command-line entry point
 └── __main__.py              # Supports python -m cache_simulator
 tests/                       # unittest suite
@@ -168,56 +168,72 @@ python -m cache_simulator.reference_validation
 python -m cache_simulator.workloads --output-dir data/generated --seed 20261111
 ```
 
-### 批量跑批
+### 正式实验与快速自检
+
+正式入口统一为 `d_experiments/run_all.py`。以下命令均在仓库根执行；`experiments` 不额外传 `--bar-capacity`，也不额外传 `--output-dir`，保留 `run_all.py` 的正式默认行为：
 
 ```bash
-python -m cache_simulator.experiments --output-dir data/experiments/latest --seed 20261111
+python d_experiments/run_all.py                 # 正式全量，默认 data/experiments/run_all
+python d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small   # 快速自检，独立输出
 ```
 
-常用参数（与 `experiments.py` 一致）：
-
-| 参数 | 默认 | 说明 |
-| --- | --- | --- |
-| `--output-dir` | `data/experiments/latest` | 跑批输出目录：`summary.csv`、`clients.csv`、`events/*.csv`、`manifest.json` |
-| `--seed` | `20261111` | 随机种子；正式实验种子为 20261111–20261115；调参选 $H$ 用种子 31415，不参与正式结果 |
-| `--capacities-bytes` | 32 / 128 / 256 / 512 / 1024 KiB | 容量档位，精确字节数 |
-| `--policies` | 五策略 | 参与跑批的策略名 |
-| `--policy-parameters-json` | 无 | JSON 文件，把构造参数传给对应策略（如 CUSTOM 的 `half_life`），并写入 `manifest.json` |
-| `--hit-latency-ms` | `5.0` | 命中延迟（仅传入引擎） |
-
-- `data/reference/` 不会被修改；`data/experiments/` 与 `data/generated/` 的中/大规模产物按 `.gitignore` 忽略。
-
-### 一键正式实验与图表
-
-以下命令使用 main 上的 `d_experiments/`（PR #32 已合入并经 #33 验收）。
-
-已提交的正式结果可用一条命令重跑（会写入 `data/experiments/run_all/`，默认不覆盖 `data/results/`）：
+Make / PowerShell 等价入口：
 
 ```bash
-python d_experiments/run_all.py --output-dir data/experiments/run_all
+make experiments
+make experiments-small
 ```
-
-从已提交的结果表重新生成 6 张图：
-
-```bash
-make figures
-# Windows PowerShell
-.\make.ps1 figures
-# 等价直接调用
-python d_experiments/make_plots.py \
-  --results-dir data/results/main \
-  --tuning-dir data/results/h-tuning \
-  --figures-dir data/results/figures
-```
-
-`make figures` 使用 `RESULTS_DIR`、`TUNING_DIR`、`FIGURES_DIR` 三个变量，默认分别指向 `data/results/main`、`data/results/h-tuning`、`data/results/figures`。绘图需要安装 `plot` 可选依赖：`python -m pip install -e ".[plot]"`。
-
-### Windows
-
-无 `make` 时直接运行上述 `python -m ...` 命令，或使用薄映射脚本：
 
 ```powershell
 .\make.ps1 experiments
+.\make.ps1 experiments-small
+```
+
+`run_all.py` 的正式默认值：
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `--output-dir` | `data/experiments/run_all` | 全部阶段输出根目录；不写入 `data/results` |
+| `--seeds` | 20261111–20261115 | 正式主实验、公平性与消融的五个种子；调参种子 31415 会被拒绝 |
+| `--scale` | `large` | 只影响 main/ablation；`small` 用于快速自检，tuning 与 drift 仍按固定设计 |
+| `--half-life` | 由 tuning 的 `h_choice.json` 决定 | 当前选择为 20；正式运行不要覆盖 |
+| `--bar-capacity` | `512` | 正式图表容量；不要传自定义值 |
+
+`experiments-small` 目标显式传入 `--output-dir data/experiments/run_all_small`，避免覆盖 full 实验的 `data/experiments/run_all/` scratch 结果。
+
+目录边界：
+
+- `data/results/` 是已提交的正式结果（27 个 tracked 文件：表、manifest、6 张图），不得被 `run_all.py` 覆盖；
+- `data/experiments/` 是可重建的 scratch 运行产物，已被 `.gitignore` 忽略，**不进入最终 ZIP**；
+- `data/reference/`、`data/generated/` 的 small 入库文件、`data/tuning/` 分别保留为输入材料。
+
+### 图表目标（Option A）
+
+`make figures` / `.\make.ps1 figures` 默认从 `data/results/main` 与 `data/results/h-tuning` 读取表，输出到 scratch `data/experiments/figures/`，并显式使用 `--bar-capacity 512`；默认命令不会写 `data/results/figures`。
+
+如需刷新正式图表，必须显式设置 `FIGURES_DIR=data/results/figures`：
+
+```bash
+FIGURES_DIR=data/results/figures make figures
+```
+
+```powershell
+$env:FIGURES_DIR = "data/results/figures"
+.\make.ps1 figures
+Remove-Item Env:FIGURES_DIR -ErrorAction SilentlyContinue
+```
+
+`FIGURES_DIR` 在当前 PowerShell 会话中会持续生效；执行上述清理步骤后，后续 `.\make.ps1 figures` 才恢复默认 scratch 目录 `data/experiments/figures/`。
+
+这会覆盖 `data/results/figures`，执行前确认；仅在 D/C 确认需要刷新时使用。`make_plots.py` 本身未修改。
+
+### Windows
+
+无 `make` 时直接运行上述 `python d_experiments/run_all.py` 命令，或使用薄映射脚本：
+
+```powershell
+.\make.ps1 experiments
+.\make.ps1 experiments-small
 .\make.ps1 test
 .\make.ps1 reference
 ```
