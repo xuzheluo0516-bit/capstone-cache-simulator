@@ -100,7 +100,7 @@ The committed tables are:
 | `data/results/main/fairness.csv` | Jain index and worst-client response time per policy and capacity |
 | `data/results/h-tuning/summary.csv` | Per-run tuning rows for the candidate half-lives |
 | `data/results/h-tuning/h_choice.json` | Pre-registered rule, candidate scores, and selected `H` |
-| `data/results/ablation/ablation_table.csv` | Percent response-time change of each ablation variant relative to full RW-CSF |
+| `data/results/ablation/ablation_table.csv` | Relative percent response-time change of each ablation variant against full RW-CSF, `(variant - full) / full × 100` |
 | `data/results/ablation/ablation_by_capacity.csv` | Same comparison split by capacity |
 | `data/results/drift/drift_runs.csv` | Drift result per seed, capacity, and policy |
 | `data/results/drift/drift_table.csv` | Drift results aggregated over seeds |
@@ -109,7 +109,8 @@ The committed tables are:
 Each seed directory also has a `manifest.json` recording the command, seed,
 capacities, hit latency, initial state, policies and parameters, tested code
 revision, simulator-source hash, experiment-source hash, dependency versions,
-planned/completed run counts, and per-run input hashes and status. Generated
+planned run count (plus the completed count only when every run succeeds), and
+per-run input hashes and status. Generated
 workload metadata records the workload kind, scale, seeds, counts, resource
 sizes, and relative input filenames. Absolute paths in `run_all.json` are
 machine-specific.
