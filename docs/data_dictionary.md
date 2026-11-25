@@ -258,7 +258,9 @@ The formal experiments are produced by `d_experiments/` and written under
 `data/results/`. All CSV files are UTF-8 with a header row and LF line endings.
 Numeric values are decimal text. Hit-rate, byte-hit-rate, and fairness inputs
 are stored as fractions in `[0, 1]`, not as `12.5` for 12.5%; the ablation
-`percent_change` columns are percentage points, so `0.205` means `+0.205%`.
+`percent_change` columns are relative percentage changes from the full policy,
+`(variant - full) / full × 100`, so `0.205` means the variant is 0.205% slower
+than the full policy (not a 0.205 percentage-point difference).
 Byte counts are exact integers unless the column name says otherwise.
 `capacity_KiB` is `capacity_bytes / 1024`.
 
@@ -382,7 +384,7 @@ include `RWCSF_H5`, `RWCSF_H20`, `RWCSF_H100`, `RWCSF_H500`, plus `FIFO`,
 | `seed` | Tuning seed `31415` |
 | `scores_ms` | Score for each candidate, keyed by candidate value |
 | `chosen_half_life` | Selected half-life; the committed run selected `20` |
-| `source_sha256` | SHA-256 of the experiment source used for the tuning run |
+| `source_sha256` | SHA-256 of the simulator sources (`src/cache_simulator/*.py`), copied from the tuning run's manifest; the hash of the `d_experiments/` scripts is `experiment_source_sha256` in `manifest.json` |
 
 The formal seeds are `20261111` through `20261115`; the tuning seed must not
 appear in formal runs.
@@ -398,10 +400,12 @@ The ablation removes one ingredient of RW-CSF at the fixed half-life:
 | `ABL_NO_DECAY` | Half-life becomes infinity; frequency stops decaying |
 
 `ablation/ablation_table.csv` has `variant`, then one column per workload
-(`repeated`, `sequential`, `mixed`). Each cell is the percent change in mean
-average response time of the variant relative to the full policy, first
-averaging over capacities, then over seeds. Positive means the variant is
-slower, so the removed ingredient helped.
+(`repeated`, `sequential`, `mixed`). Each cell is the relative percentage
+change in mean average response time of the variant against the full policy,
+computed as `(variant - full) / full × 100`, first averaging over capacities,
+then over seeds. Positive means the variant is slower, so the removed
+ingredient helped. For example, `0.205` is a 0.205% relative increase, not
+0.205 percentage points.
 
 `ablation/ablation_by_capacity.csv` has columns `variant`, `workload`,
 `capacity_KiB`, `full_ms`, `variant_ms`, and `percent_change`; it keeps the
@@ -441,9 +445,16 @@ Every `manifest.json` produced by `run_suite()` records at least:
 | `source_sha256` | SHA-256 of the simulator source used for the run |
 | `experiment_source_sha256` | SHA-256 of the `d_experiments/` scripts used for the run |
 | `dependency_versions` | Python and package versions |
-| `planned_runs`, `completed_runs` | Planned and completed run counts |
+| `planned_runs` | Number of conditions planned; written before the first run |
+| `completed_runs` | Number of conditions completed; written only when every planned run succeeds |
 | `runs` | Per-condition records |
-| `status` | Overall run status |
+| `status` | `complete` when every run succeeded; absent from a failed manifest |
+
+A failed condition stops `run_suite()` before the final manifest write. The
+failed manifest therefore has no `completed_runs` and no `status`; the failing
+item in `runs` carries `status: failed` plus an `error` message. Only a
+manifest from a fully successful run contains `status: complete` and
+`completed_runs`.
 
 Each `runs` item records `workload`, `scale`, `capacity_bytes`, `policy`,
 relative paths to the resource/request/metadata inputs and event output,
