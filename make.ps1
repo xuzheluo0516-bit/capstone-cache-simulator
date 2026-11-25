@@ -9,20 +9,22 @@ param(
 $python = if ($env:PYTHON) { $env:PYTHON } else { "python" }
 $resultsDir = if ($env:RESULTS_DIR) { $env:RESULTS_DIR } else { "data/results/main" }
 $tuningDir = if ($env:TUNING_DIR) { $env:TUNING_DIR } else { "data/results/h-tuning" }
-$figuresDir = if ($env:FIGURES_DIR) { $env:FIGURES_DIR } else { "data/results/figures" }
+$figuresDir = if ($env:FIGURES_DIR) { $env:FIGURES_DIR } else { "data/experiments/figures" }
 
 switch ($Target) {
     "help" {
         Write-Host "Targets:"
-        Write-Host "  install     Install the project in editable mode"
-        Write-Host "  test        Run the unittest suite (same command as CI)"
-        Write-Host "  reference   Run the reference trace validator (same command as CI)"
-        Write-Host "  experiments Run the batch experiment scaffold"
-        Write-Host "  figures     Generate figures from committed experiment tables"
-        Write-Host "  clean       Remove caches and build artifacts (keeps data/)"
+        Write-Host "  install            Install the project in editable mode (dev + plot)"
+        Write-Host "  test               Run the unittest suite (same command as CI)"
+        Write-Host "  reference          Run the reference trace validator (same command as CI)"
+        Write-Host "  experiments        Run the full d_experiments pipeline"
+        Write-Host "  experiments-small  Run the d_experiments quick check (--scale small)"
+        Write-Host "  figures            Generate figures (default: data/experiments/figures; 512 KiB)"
+        Write-Host "                     Set FIGURES_DIR=data/results/figures to refresh formal figures (overwrites)"
+        Write-Host "  clean              Remove caches and build artifacts (keeps data/)"
     }
     "install" {
-        & $python -m pip install -e .
+        & $python -m pip install -e ".[dev,plot]"
         exit $LASTEXITCODE
     }
     "test" {
@@ -34,11 +36,15 @@ switch ($Target) {
         exit $LASTEXITCODE
     }
     "experiments" {
-        & $python -m cache_simulator.experiments
+        & $python d_experiments/run_all.py
+        exit $LASTEXITCODE
+    }
+    "experiments-small" {
+        & $python d_experiments/run_all.py --scale small
         exit $LASTEXITCODE
     }
     "figures" {
-        & $python d_experiments/make_plots.py --results-dir $resultsDir --tuning-dir $tuningDir --figures-dir $figuresDir
+        & $python d_experiments/make_plots.py --results-dir $resultsDir --tuning-dir $tuningDir --figures-dir $figuresDir --bar-capacity 512
         exit $LASTEXITCODE
     }
     "clean" {

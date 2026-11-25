@@ -109,7 +109,7 @@ src/cache_simulator/
 ├── output.py                # Ten-column CSV serialization
 ├── reference_validation.py  # Semantic expected-output comparator
 ├── workloads.py             # Reproducible workload generator
-├── experiments.py           # Batch experiment scaffold
+├── experiments.py           # Legacy batch scaffold (not the formal experiment entry)
 ├── cli.py                   # Command-line entry point
 └── __main__.py              # Supports python -m cache_simulator
 tests/                       # unittest suite
@@ -132,7 +132,25 @@ docs/                        # Contracts, data dictionary, design doc, guideline
 | 实验绘图（matplotlib，可选） | `python -m pip install -e ".[plot]"` |
 | 完整开发环境 | `python -m pip install -e ".[dev,plot]"`（或 `python -m pip install -r requirements.txt`） |
 
-构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `figures` / `clean`。`figures` 从 `data/results/main` 与 `data/results/h-tuning` 重新生成 `data/results/figures/` 下的 6 张 PNG。
+构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `experiments-small` / `figures` / `clean`。`experiments` 与 `experiments-small` 统一调用 `d_experiments/run_all.py`：默认输出到 `data/experiments/run_all/`，默认图表容量为 512 KiB，不写入 `data/results/`。`figures` 目标读取正式表，默认输出到 scratch `data/experiments/figures/` 并显式使用 512 KiB；只有显式设置 `FIGURES_DIR=data/results/figures` 才会刷新正式图表，存在覆盖风险。
+
+### 实验运行
+
+正式实验与快速自检都从仓库根执行；`experiments` 使用默认 `large` 规模和正式五个种子：
+
+```bash
+python d_experiments/run_all.py                 # 正式全量；默认 512 KiB；输出 data/experiments/run_all
+python d_experiments/run_all.py --scale small   # 快速自检
+
+make experiments
+make experiments-small
+
+# Windows PowerShell
+.\make.ps1 experiments
+.\make.ps1 experiments-small
+```
+
+`data/results/` 是已提交的正式结果（27 个 tracked 文件），不是 scratch 目录；`data/experiments/` 是可重建的运行产物，已被 `.gitignore` 忽略，**不进入最终 ZIP**。正式结果与 scratch 输出必须分开保存。
 
 ### 命令行入口
 
