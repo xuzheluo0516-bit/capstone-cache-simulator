@@ -18,7 +18,7 @@ switch ($Target) {
         Write-Host "  test               Run the unittest suite (same command as CI)"
         Write-Host "  reference          Run the reference trace validator (same command as CI)"
         Write-Host "  experiments        Run the full d_experiments pipeline"
-        Write-Host "  experiments-small  Run the d_experiments quick check (--scale small)"
+        Write-Host "  experiments-small  Run the d_experiments quick check (--scale small; data/experiments/run_all_small)"
         Write-Host "  figures            Generate figures (default: data/experiments/figures; 512 KiB)"
         Write-Host "                     Set FIGURES_DIR=data/results/figures to refresh formal figures (overwrites)"
         Write-Host "  clean              Remove caches and build artifacts (keeps data/)"
@@ -40,7 +40,7 @@ switch ($Target) {
         exit $LASTEXITCODE
     }
     "experiments-small" {
-        & $python d_experiments/run_all.py --scale small
+        & $python d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small
         exit $LASTEXITCODE
     }
     "figures" {

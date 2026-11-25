@@ -174,7 +174,7 @@ python -m cache_simulator.workloads --output-dir data/generated --seed 20261111
 
 ```bash
 python d_experiments/run_all.py                 # 正式全量，默认 data/experiments/run_all
-python d_experiments/run_all.py --scale small   # 快速自检
+python d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small   # 快速自检，独立输出
 ```
 
 Make / PowerShell 等价入口：
@@ -199,6 +199,8 @@ make experiments-small
 | `--half-life` | 由 tuning 的 `h_choice.json` 决定 | 当前选择为 20；正式运行不要覆盖 |
 | `--bar-capacity` | `512` | 正式图表容量；不要传自定义值 |
 
+`experiments-small` 目标显式传入 `--output-dir data/experiments/run_all_small`，避免覆盖 full 实验的 `data/experiments/run_all/` scratch 结果。
+
 目录边界：
 
 - `data/results/` 是已提交的正式结果（27 个 tracked 文件：表、manifest、6 张图），不得被 `run_all.py` 覆盖；
@@ -218,7 +220,10 @@ FIGURES_DIR=data/results/figures make figures
 ```powershell
 $env:FIGURES_DIR = "data/results/figures"
 .\make.ps1 figures
+Remove-Item Env:FIGURES_DIR -ErrorAction SilentlyContinue
 ```
+
+`FIGURES_DIR` 在当前 PowerShell 会话中会持续生效；执行上述清理步骤后，后续 `.\make.ps1 figures` 才恢复默认 scratch 目录 `data/experiments/figures/`。
 
 这会覆盖 `data/results/figures`，执行前确认；仅在 D/C 确认需要刷新时使用。`make_plots.py` 本身未修改。
 

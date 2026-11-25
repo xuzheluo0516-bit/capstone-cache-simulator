@@ -80,7 +80,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 
 - `make install` / `.\make.ps1 install` 安装 `.[dev,plot]`；仅需运行时可用 `pip install -e .`。
 - `make experiments` / `.\make.ps1 experiments` 调用 `python d_experiments/run_all.py`，使用默认输出 `data/experiments/run_all/` 和默认 512 KiB 图表容量；不覆盖 `data/results/`。
-- `make experiments-small` / `.\make.ps1 experiments-small` 调用 `python d_experiments/run_all.py --scale small`，用于快速自检。
+- `make experiments-small` / `.\make.ps1 experiments-small` 调用 `python d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small`，使用独立 scratch 目录，避免覆盖 full 实验的 `data/experiments/run_all/`。
 - `data/results/` 是已提交的正式结果；`data/experiments/` 是 scratch 产物，不进入最终 ZIP。
 - `figures` 目标按 Option A 实现：默认输出 scratch `data/experiments/figures/` 并显式使用 512 KiB；只有显式设置 `FIGURES_DIR=data/results/figures` 才会刷新正式图表，存在覆盖风险。
 

@@ -132,7 +132,7 @@ docs/                        # Contracts, data dictionary, design doc, guideline
 | 实验绘图（matplotlib，可选） | `python -m pip install -e ".[plot]"` |
 | 完整开发环境 | `python -m pip install -e ".[dev,plot]"`（或 `python -m pip install -r requirements.txt`） |
 
-构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `experiments-small` / `figures` / `clean`。`experiments` 与 `experiments-small` 统一调用 `d_experiments/run_all.py`：默认输出到 `data/experiments/run_all/`，默认图表容量为 512 KiB，不写入 `data/results/`。`figures` 目标读取正式表，默认输出到 scratch `data/experiments/figures/` 并显式使用 512 KiB；只有显式设置 `FIGURES_DIR=data/results/figures` 才会刷新正式图表，存在覆盖风险。
+构建脚本：`Makefile`（类 Unix）与 `make.ps1`（Windows PowerShell），目标 `install` / `test` / `reference` / `experiments` / `experiments-small` / `figures` / `clean`。`experiments` 与 `experiments-small` 统一调用 `d_experiments/run_all.py`：`experiments` 默认输出到 `data/experiments/run_all/`，`experiments-small` 输出到独立的 `data/experiments/run_all_small/`，默认图表容量为 512 KiB，不写入 `data/results/`。`figures` 目标读取正式表，默认输出到 scratch `data/experiments/figures/` 并显式使用 512 KiB；只有显式设置 `FIGURES_DIR=data/results/figures` 才会刷新正式图表，存在覆盖风险。
 
 ### 实验运行
 
@@ -140,7 +140,7 @@ docs/                        # Contracts, data dictionary, design doc, guideline
 
 ```bash
 python d_experiments/run_all.py                 # 正式全量；默认 512 KiB；输出 data/experiments/run_all
-python d_experiments/run_all.py --scale small   # 快速自检
+python d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small  # 快速自检；独立输出目录
 
 make experiments
 make experiments-small
@@ -174,7 +174,7 @@ python -m cache_simulator --resources data/reference/resources.csv \
 
 ## 实验要求
 
-可复现工作负载、容量档位及跑批命令见 [实验说明](docs/experiments.md) 和 [HOWTO](HOWTO.md)。
+可复现工作负载与容量档位说明见 [实验说明](docs/experiments.md)；当前正式实验命令与快速自检见 [HOWTO 的正式实验与快速自检](HOWTO.md#正式实验与快速自检)。
 
 至少评估三类工作负载：
 

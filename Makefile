@@ -12,7 +12,7 @@ help:
 	@echo "  test               Run the unittest suite (same command as CI)"
 	@echo "  reference          Run the reference trace validator (same command as CI)"
 	@echo "  experiments        Run the full d_experiments pipeline"
-	@echo "  experiments-small  Run the d_experiments quick check (--scale small)"
+	@echo "  experiments-small  Run the d_experiments quick check (--scale small; data/experiments/run_all_small)"
 	@echo "  figures            Generate figures (default: data/experiments/figures; 512 KiB)"
 	@echo "                     Set FIGURES_DIR=data/results/figures to refresh formal figures (overwrites)"
 	@echo "  clean              Remove caches and build artifacts (keeps data/)"
@@ -30,7 +30,7 @@ experiments:
 	$(PYTHON) d_experiments/run_all.py
 
 experiments-small:
-	$(PYTHON) d_experiments/run_all.py --scale small
+	$(PYTHON) d_experiments/run_all.py --scale small --output-dir data/experiments/run_all_small
 
 figures:
 	$(PYTHON) d_experiments/make_plots.py --results-dir "$(RESULTS_DIR)" --tuning-dir "$(TUNING_DIR)" --figures-dir "$(FIGURES_DIR)" --bar-capacity 512
