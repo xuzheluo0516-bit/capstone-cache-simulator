@@ -1,0 +1,9 @@
+# Keep Python sources and CSV data at LF even when Git for Windows sets
+# core.autocrlf=true. The manifests in data/results/ record SHA-256 hashes of
+# the .py sources, so a CRLF checkout would make provenance checks fail.
+.gitattributes text eol=lf
+*.py text eol=lf
+*.csv text eol=lf
+
+# Instructor-provided reference files must retain their original CRLF bytes.
+data/reference/** -text

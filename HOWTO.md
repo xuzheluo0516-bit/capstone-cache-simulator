@@ -238,10 +238,4 @@ Remove-Item Env:FIGURES_DIR -ErrorAction SilentlyContinue
 .\make.ps1 reference
 ```
 
-仓库文本文件以 LF 保存。Git for Windows 默认可能启用 `core.autocrlf=true`，checkout 时把 LF 改写为 CRLF，导致按字节比较生成 CSV 的测试失败。首次 clone 后建议在仓库根目录执行：
-
-```bash
-git config core.autocrlf false
-```
-
-然后重新 clone 或重新 checkout 工作区。详细复现记录见 [docs/reproduction-log.md](docs/reproduction-log.md)。
+仓库通过 `.gitattributes` 固定 `.py` 与 `.csv` 的 checkout 换行为 LF，并让 `data/reference/` 保留教授文件的原始 CRLF 字节。即使 Git for Windows 使用 `core.autocrlf=true`，也无需手动修改配置；旧 clone 重新 checkout 工作区即可。CSV 回归测试按解析后的字段比较，不再依赖换行表示。详细复现记录见 [docs/reproduction-log.md](docs/reproduction-log.md)。
