@@ -17,7 +17,7 @@ import common  # noqa: E402
 
 HEADER = ("workload,capacity_bytes,policy,seed,client_id,"
           "request_hit_rate,average_response_ms\n")
-EXPECTED_MANIFESTS = 12
+EXPECTED_MANIFESTS = 13
 RUN_ALL_TIMEOUT_SECONDS = 240
 
 

@@ -33,7 +33,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 │   ├── reference/                       # 参考输入、预期输出与答案
 │   ├── generated/                        # 生成的工作负载 trace（small 入库，medium/large 忽略）
 │   ├── experiments/                      # 批量实验产物（git-ignored）
-│   ├── results/                          # 正式实验表、manifest 与 6 张图（#33 已验收）
+│   ├── results/                          # 正式实验表、manifest 与图（#33 验收时为 6 张图;加入课程 trace 结果后为 12 张图、13 份 manifest）
 │   └── tuning/                           # 调参选 H 专用 trace（种子 31415）
 ├── d_experiments/                        # H 选取、主实验、消融、漂移、公平性与绘图脚本（#33 已验收）
 ├── docs/                                # 设计契约、数据字典、设计文档与本规范
@@ -64,7 +64,7 @@ PR 流程、代码风格、commit 规范、依赖与测试，以及关键 issue 
 | `data/generated/`      | Present                | 工作负载生成器产出的资源 / 请求 / 元数据；small 入库，medium/large 被忽略 |
 | `data/experiments/`    | Present（git-ignored）  | 批量实验 scratch 输出目录，按 `.gitignore` 忽略，不入库、不进入最终 ZIP |
 | `data/tuning/`         | Present                | 调参专用 trace（种子 31415），仅用于选 H，不参与正式结果            |
-| `data/results/`        | Present（#33 已验收）  | D 的正式汇总表、manifest 与 6 张图；作为 #13/#15/#17 的输入 |
+| `data/results/`        | Present（#33 已验收）  | D 的正式汇总表、manifest 与图（#33 验收时 6 张，现为 12 张）；作为 #13/#15/#17 的输入 |
 | `d_experiments/`       | Present（#33 已验收）  | H 选取、主实验、消融、漂移、公平性与绘图的一键脚本                |
 
 > 说明：

@@ -1,0 +1,16 @@
+workload,rank,resource,requests,share,size_bytes
+sequential,1,learn.university.edu/static/main.css,148,0.04933333333333333,43008
+sequential,2,pypi.org/project/requests/,148,0.04933333333333333,96256
+sequential,3,video.university.edu/media/networking-demo-720p.mp4,148,0.04933333333333333,44462080
+sequential,4,cdn.university.edu/images/campus-banner.webp,147,0.049,317440
+sequential,5,learn.university.edu/api/course/ics/announcements,147,0.049,9216
+repetitive,1,learn.university.edu/courses/ics/lecture08.pdf,680,0.22666666666666666,2263040
+repetitive,2,learn.university.edu/static/logo.svg,666,0.222,14336
+repetitive,3,learn.university.edu/static/app.js,630,0.21,190464
+repetitive,4,learn.university.edu/courses/ics/index.html,629,0.20966666666666667,32768
+repetitive,5,library.university.edu/articles/cache-replacement.pdf,34,0.011333333333333334,778240
+mixed,1,developer.mozilla.org/static/assets/main.css,188,0.06266666666666666,69632
+mixed,2,learn.university.edu/static/main.css,187,0.06233333333333333,43008
+mixed,3,learn.university.edu/static/app.js,185,0.06166666666666667,190464
+mixed,4,video.university.edu/media/intro-to-os-720p.mp4,173,0.057666666666666665,59637760
+mixed,5,library.university.edu/articles/cache-replacement.pdf,170,0.056666666666666664,778240

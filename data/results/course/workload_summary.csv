@@ -1,0 +1,4 @@
+workload,total_requests,distinct_resources,distinct_clients,total_requested_bytes,requests_larger_than_100KiB,requests_larger_than_500KiB,requests_larger_than_1024KiB,requests_larger_than_2048KiB,requests_larger_than_5120KiB,requests_larger_than_10240KiB
+sequential,3000,21,6,15836925952,1431,716,570,424,288,288
+repetitive,3000,21,6,4380107776,1492,784,750,730,50,50
+mixed,3000,21,6,14038665216,1370,730,560,393,234,234

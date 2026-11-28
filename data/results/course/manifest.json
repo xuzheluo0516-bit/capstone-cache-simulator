@@ -1,0 +1,48 @@
+{
+  "capacities_KiB": [
+    100,
+    500,
+    1024,
+    2048,
+    5120,
+    10240
+  ],
+  "command": "python d_experiments/course/run_course.py --output-dir <output-dir>",
+  "completed_runs": 90,
+  "course_source_sha256": "33ab326aa9569ffae34c6b71681ec1bf14b6f58fbfafd3d914aae774f51e01c5",
+  "dependency_versions": {
+    "package": null,
+    "python": "3.13.18"
+  },
+  "deterministic": true,
+  "experiment": "course-provided traces",
+  "experiment_source_sha256": "b004ddd3086751a7b5864351e73c2487f2d184e3d59647d32aa362abad5a9308",
+  "exploratory": false,
+  "failed_runs": 0,
+  "h_sensitivity": "exploratory; values 5, 20, 100, 500, inf; not used to choose H",
+  "half_life": 20.0,
+  "hit_latency_ms": 5.0,
+  "input_sha256": {
+    "requests_mixed.csv": "8f8a34f1129cd147cd6467ec5467bb626d9e82d76d8803d97b9707ba0c7a41f8",
+    "requests_repetitive.csv": "6f091f07b83781afdf8fb908c65437c522cd9be96ab414a827f51f55429b0dca",
+    "requests_sequential.csv": "7486650b74bc47d98dee38226d464c670181806c8b35e98abcc940cf3d18915c",
+    "resources.csv": "b2117bca54a566a999cd21333bb34a3dc25e0d0f371cf9aad8bfb7c63d1869e7"
+  },
+  "planned_runs": 90,
+  "policies": [
+    "FIFO",
+    "LRU",
+    "LFU",
+    "GDSF",
+    "CUSTOM"
+  ],
+  "preregistration": "d_experiments/course/COURSE_PREREGISTRATION.md",
+  "source_sha256": "2ae10852d1388c264f04d3666f724c659c0e826a018c29e7691e90ce1b7b1d0f",
+  "standard_capacity_KiB": 5120,
+  "status": "complete",
+  "workloads": [
+    "sequential",
+    "repetitive",
+    "mixed"
+  ]
+}

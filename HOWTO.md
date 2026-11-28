@@ -203,7 +203,7 @@ make experiments-small
 
 目录边界：
 
-- `data/results/` 是已提交的正式结果（27 个 tracked 文件：表、manifest、6 张图），不得被 `run_all.py` 覆盖；
+- `data/results/` 是已提交的正式结果（41 个 tracked 文件：表、13 份 manifest、12 张图，其中课程 trace 结果在 `data/results/course/`），不得被 `run_all.py` 覆盖；
 - `data/experiments/` 是可重建的 scratch 运行产物，已被 `.gitignore` 忽略，**不进入最终 ZIP**；
 - `data/reference/`、`data/generated/` 的 small 入库文件、`data/tuning/` 分别保留为输入材料。
 
