@@ -16,18 +16,24 @@ from cache_simulator.policies import FIFOPolicy, LFUPolicy, LRUPolicy
 from cache_simulator.workloads import ALL_KINDS, CAPACITIES_BYTES, KINDS, generate_suite
 
 
+def read_csv_rows(path: Path) -> list[list[str]]:
+    """Compare CSV content by parsed fields, independent of line endings."""
+    with path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.reader(handle))
+
+
 class WorkloadTests(unittest.TestCase):
     def test_committed_small_examples_match_current_generator(self) -> None:
         committed = Path(__file__).resolve().parents[1] / "data" / "generated"
         with tempfile.TemporaryDirectory() as directory:
             for workload in generate_suite(Path(directory), seed=20261111, counts={"small": 72}):
                 self.assertEqual(
-                    workload.resources_path.read_bytes(),
-                    (committed / workload.resources_path.name).read_bytes(),
+                    read_csv_rows(workload.resources_path),
+                    read_csv_rows(committed / workload.resources_path.name),
                 )
                 self.assertEqual(
-                    workload.requests_path.read_bytes(),
-                    (committed / workload.requests_path.name).read_bytes(),
+                    read_csv_rows(workload.requests_path),
+                    read_csv_rows(committed / workload.requests_path.name),
                 )
 
     def test_all_kinds_parse_and_reproduce_with_same_seed(self) -> None:

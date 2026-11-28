@@ -50,11 +50,12 @@
 
 ### P1（阻断，影响所有 Windows 队友）测试在 Git for Windows 默认配置下失败
 
-`tests/test_workloads_experiments.py` 的 `test_committed_small_examples_match_current_generator` 用 `read_bytes()` 逐字节比较生成的 CSV 与仓库里的同名 CSV。Git for Windows 安装时把 `core.autocrlf=true` 写入系统级配置（本机为 `C:/Program Files/Git/etc/gitconfig`），checkout 时把仓库中 LF 的 CSV 转成 CRLF，而生成器写出的仍是 LF，于是断言必然失败。仓库没有 `.gitattributes`，无法固定换行。
+`tests/test_workloads_experiments.py` 的 `test_committed_small_examples_match_current_generator` 用 `read_bytes()` 逐字节比较生成的 CSV 与仓库里的同名 CSV。Git for Windows 安装时把 `core.autocrlf=true` 写入系统级配置（本机为 `C:/Program Files/Git/etc/gitconfig`），checkout 时把仓库中 LF 的 CSV 转成 CRLF，而生成器写出的仍是 LF，于是断言必然失败。当时仓库没有 `.gitattributes`，无法固定换行。
 
 - 影响：#11 验收 2 的「同一配置和种子生成相同元数据」在 Windows 上表现为失败；任何队友在默认 Git 配置下都会遇到，且容易误判为代码缺陷。
 - 建议（E）：加 `.gitattributes`，对 CSV 与生成数据不转换换行（例如 `*.csv -text`，避免影响 `data/reference/` 必须保持原样的 CRLF 文件），或把该断言改为按解析后的行/字段比较，而不是原始字节。责任人：E（测试作者），A 在 #2 规范里补换行约定。
 - C 侧处置：本记录的步骤 6 用 `core.autocrlf=false` 绕过，并已确认这是唯一失败的测试。
+- 收尾修复（2026-11-28）：新增 `.gitattributes`，将 `.py` 与 `.csv` 固定为 LF checkout，并用 `data/reference/** -text` 保留教授参考文件的原始 CRLF；`test_committed_small_examples_match_current_generator` 改为按 CSV 解析后的字段比较。在 `core.autocrlf=true` 的 Windows 工作区复跑全量测试、参考对账与结果审计均通过，正式 `data/results/` 未被修改。
 
 ### P2（文档矛盾，合并后才暴露）HOWTO 第 9 节与第 4.1 节互相矛盾
 
