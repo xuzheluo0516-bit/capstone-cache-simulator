@@ -118,6 +118,8 @@ RW-CSF 相对 LRU 让**每个**客户端的平均响应时间都下降,幅度从
 | mixed | 182.1 | 173.4 | 167.8 | 167.0 | 166.9 | 168.4 |
 
 (5 MiB 下的平均响应时间,ms;完整结果见 `course_h_sensitivity.csv`。)
+`scripts/audit_results.py` 对这张探索性表的全部 90 行逐行从原始 trace 用独立 RW-CSF 计算路径重算
+`average_response_ms` 和 `request_hit_rate`;因此该表除结构和参数外,数值也纳入审计。
 H 从 5 到 ∞,sequential 变化 12.0%、repetitive 11.0%、mixed 9.1%;H ≥ 100 时 RW-CSF 与 GDSF 基本相同,
 H=∞(不衰减)在 mixed 和 repetitive 上甚至略好于 GDSF。这说明:
 1. 这三个 trace 的热度分布是稳定的,衰减没有东西可以"忘记",固定的 H=20 反而丢掉了有用的历史频率,

@@ -92,12 +92,23 @@ COURSE_H_VALUES = ("5", "20", "100", "500", "inf")
 COURSE_CLIENTS = tuple(f"student-0{i}" for i in range(1, 7))
 
 
-def audit_course_distribution(course: Path, repo: Path) -> int:
-    """Audit workload_distribution.csv against resources and request traces."""
-    catalog = {
+def course_catalog(repo: Path) -> dict[str, int]:
+    return {
         f"{r['host']}{r['path']}": int(r["size_bytes"])
         for r in rows(repo / "data" / "reference" / "resources.csv")
     }
+
+
+def course_policy_catalog(repo: Path) -> dict[str, tuple[int, float]]:
+    return {
+        f"{r['host']}{r['path']}": (int(r["size_bytes"]), float(r["origin_latency_ms"]))
+        for r in rows(repo / "data" / "reference" / "resources.csv")
+    }
+
+
+def audit_course_distribution(course: Path, repo: Path) -> int:
+    """Audit workload_distribution.csv against resources and request traces."""
+    catalog = course_catalog(repo)
     expected = {(w, resource) for w in COURSE_WORKLOADS for resource in catalog}
     distribution = rows(course / "workload_distribution.csv")
     actual = [(r["workload"], r["resource"]) for r in distribution]
@@ -124,6 +135,133 @@ def audit_course_distribution(course: Path, repo: Path) -> int:
     return len(distribution)
 
 
+def audit_course_workload_summary(course: Path, repo: Path) -> int:
+    """Cross-check workload_summary.csv against request traces and resource sizes."""
+    catalog = course_catalog(repo)
+    summary = rows(course / "workload_summary.csv")
+    require(len(summary) == len(COURSE_WORKLOADS), f"{course / 'workload_summary.csv'}: expected 3 rows")
+    require(len({r["workload"] for r in summary}) == len(COURSE_WORKLOADS),
+            f"{course / 'workload_summary.csv'}: duplicate-workload rows")
+    for row in summary:
+        workload = row["workload"]
+        require(workload in COURSE_WORKLOADS, f"{course / 'workload_summary.csv'}: unknown workload {workload}")
+        trace = rows(repo / "data" / "reference" / f"requests_{workload}.csv")
+        require(len(trace) == 3000, f"{workload}: expected 3000 requests")
+        counts: dict[str, int] = {}
+        clients = set()
+        requested_bytes = 0
+        for request in trace:
+            resource = f"{request['host']}{request['path']}"
+            counts[resource] = counts.get(resource, 0) + 1
+            clients.add(request["client_id"])
+            requested_bytes += catalog[resource]
+        require(int(row["total_requests"]) == len(trace), f"workload_summary: total_requests differs for {workload}")
+        require(int(row["distinct_resources"]) == len(counts),
+                f"workload_summary: distinct_resources differs for {workload}")
+        require(int(row["distinct_clients"]) == len(clients),
+                f"workload_summary: distinct_clients differs for {workload}")
+        require(int(row["total_requested_bytes"]) == requested_bytes,
+                f"workload_summary: total_requested_bytes differs for {workload}")
+        for kib in COURSE_CAPACITIES_KIB:
+            field = f"requests_larger_than_{kib}KiB"
+            expected = sum(n for resource, n in counts.items() if catalog[resource] > kib * 1024)
+            require(int(row[field]) == expected, f"workload_summary: {field} differs for {workload}")
+    return len(summary)
+
+
+def audit_course_top5(course: Path, repo: Path) -> int:
+    """Independently derive the top five rows from the audited distribution, not from top5 itself."""
+    catalog = course_catalog(repo)
+    distribution = rows(course / "workload_distribution.csv")
+    top5_rows = rows(course / "workload_top5.csv")
+    require(len(top5_rows) == 15, f"{course / 'workload_top5.csv'}: expected 15 rows")
+    top5 = {(r["workload"], r["rank"]): r for r in top5_rows}
+    require(len(top5) == 15, f"{course / 'workload_top5.csv'}: duplicate rows")
+    for workload in COURSE_WORKLOADS:
+        members = [r for r in distribution if r["workload"] == workload]
+        total = sum(int(r["requests"]) for r in members)
+        require(total == 3000, f"workload_top5: distribution total differs for {workload}")
+        ordered = sorted(members, key=lambda r: (-int(r["requests"]), r["resource"]))[:5]
+        require(len(ordered) == 5, f"workload_top5: fewer than five resources for {workload}")
+        for rank, expected in enumerate(ordered, start=1):
+            actual = top5.get((workload, str(rank)))
+            require(actual is not None, f"workload_top5: missing rank {rank} for {workload}")
+            require(actual["resource"] == expected["resource"],
+                    f"workload_top5: resource differs for {workload}/rank {rank}")
+            require(int(actual["requests"]) == int(expected["requests"]),
+                    f"workload_top5: requests differs for {workload}/rank {rank}")
+            require(math.isclose(float(actual["share"]), int(expected["requests"]) / total,
+                                 rel_tol=0, abs_tol=1e-9),
+                    f"workload_top5: share differs for {workload}/rank {rank}")
+            require(int(actual["size_bytes"]) == catalog[expected["resource"]],
+                    f"workload_top5: size_bytes differs for {workload}/rank {rank}")
+    return len(top5_rows)
+
+
+def reference_custom_metrics(catalog: dict[str, tuple[int, float]], requests: list[dict[str, str]],
+                             capacity: int, half_life: float) -> tuple[float, float]:
+    """Independent RW-CSF arithmetic for the exploratory H table."""
+    cache: dict[str, list] = {}  # resource -> [last_step, access_steps]
+    used = hits = 0
+    total_ms = 0.0
+    for step, request in enumerate(requests):
+        resource = f"{request['host']}{request['path']}"
+        size, latency = catalog[resource]
+        if size > capacity:
+            total_ms += latency
+            continue
+        if resource in cache:
+            hits += 1
+            total_ms += 5.0
+            cache[resource][0] = step
+            cache[resource][1].append(step)
+            continue
+        total_ms += latency
+        while used + size > capacity:
+            def priority(key: str) -> float:
+                history = cache[key][1]
+                if math.isinf(half_life):
+                    decayed = len(history)
+                else:
+                    decayed = sum(2.0 ** (-(step - n_j) / half_life) for n_j in history)
+                victim_size, victim_latency = catalog[key]
+                return decayed * max(victim_latency - 5.0, 0.0) / victim_size
+            victim = min(cache, key=lambda key: (priority(key), cache[key][0], key))
+            used -= catalog[victim][0]
+            del cache[victim]
+        cache[resource] = [step, [step]]
+        used += size
+    n = len(requests)
+    return total_ms / n, hits / n
+
+
+def audit_course_h_sensitivity(course: Path, repo: Path) -> int:
+    """Recompute every exploratory RW-CSF H row from the raw traces."""
+    catalog = course_policy_catalog(repo)
+    h_rows = rows(course / "course_h_sensitivity.csv")
+    expected = {(w, str(c), h) for w in COURSE_WORKLOADS for c in COURSE_CAPACITIES_KIB for h in COURSE_H_VALUES}
+    actual = [(r["workload"], r["capacity_KiB"], r["half_life"]) for r in h_rows]
+    require(len(actual) == len(set(actual)), f"{course / 'course_h_sensitivity.csv'}: duplicate rows")
+    require(len(actual) == 90, f"{course / 'course_h_sensitivity.csv'}: expected 90 rows")
+    require(set(actual) == expected, f"{course / 'course_h_sensitivity.csv'}: grid differs")
+    by_workload: dict[str, list[dict[str, str]]] = {}
+    for workload in COURSE_WORKLOADS:
+        by_workload[workload] = rows(repo / "data" / "reference" / f"requests_{workload}.csv")
+        require(len(by_workload[workload]) == 3000, f"{workload}: expected 3000 requests")
+    for row in h_rows:
+        half_life = float("inf") if row["half_life"] == "inf" else float(row["half_life"])
+        average, hit_rate = reference_custom_metrics(
+            catalog, by_workload[row["workload"]], int(row["capacity_KiB"]) * 1024, half_life
+        )
+        require(math.isclose(float(row["average_response_ms"]), average, rel_tol=0, abs_tol=1e-9),
+                f"course_h_sensitivity: average_response_ms differs for {row['workload']}/"
+                f"{row['capacity_KiB']}/H={row['half_life']}")
+        require(math.isclose(float(row["request_hit_rate"]), hit_rate, rel_tol=0, abs_tol=1e-9),
+                f"course_h_sensitivity: request_hit_rate differs for {row['workload']}/"
+                f"{row['capacity_KiB']}/H={row['half_life']}")
+    return len(h_rows)
+
+
 def audit_course(root: Path, repo: Path, experiment_hash: str, core_hash: str) -> dict[str, int]:
     """Audit data/results/course: manifest, input hashes, source hashes and table grids."""
     course = root / "course"
@@ -147,10 +285,10 @@ def audit_course(root: Path, repo: Path, experiment_hash: str, core_hash: str) -
     out["course_runs"] = audit_grid(course / "course_runs.csv", {(w, c, p) for w in COURSE_WORKLOADS for c in caps for p in COURSE_POLICIES}, ("workload", "capacity_KiB", "policy"))
     out["course_clients"] = audit_grid(course / "course_clients.csv", {(w, c, p, k) for w in COURSE_WORKLOADS for c in caps for p in COURSE_POLICIES for k in COURSE_CLIENTS}, ("workload", "capacity_KiB", "policy", "client_id"))
     out["course_fairness"] = audit_grid(course / "course_fairness.csv", {(w, c, p) for w in COURSE_WORKLOADS for c in caps for p in COURSE_POLICIES}, ("workload", "capacity_KiB", "policy"))
-    out["course_h_sensitivity"] = audit_grid(course / "course_h_sensitivity.csv", {(w, c, h) for w in COURSE_WORKLOADS for c in caps for h in COURSE_H_VALUES}, ("workload", "capacity_KiB", "half_life"))
-    out["course_workload_summary"] = audit_grid(course / "workload_summary.csv", {(w,) for w in COURSE_WORKLOADS}, ("workload",))
-    out["course_top5"] = audit_grid(course / "workload_top5.csv", {(w, str(k)) for w in COURSE_WORKLOADS for k in range(1, 6)}, ("workload", "rank"))
+    out["course_h_sensitivity"] = audit_course_h_sensitivity(course, repo)
+    out["course_workload_summary"] = audit_course_workload_summary(course, repo)
     out["course_workload_distribution"] = audit_course_distribution(course, repo)
+    out["course_top5"] = audit_course_top5(course, repo)
 
     client_groups: dict[tuple[str, str, str], list[dict[str, str]]] = {}
     for client in rows(course / "course_clients.csv"):

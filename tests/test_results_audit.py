@@ -60,7 +60,74 @@ class ResultsAuditTests(unittest.TestCase):
         self.assertIn("PASS drift: 150", result.stdout)
         self.assertIn("PASS course_runs: 90", result.stdout)
         self.assertIn("PASS course_clients: 540", result.stdout)
+        self.assertIn("PASS course_fairness: 90", result.stdout)
+        self.assertIn("PASS course_h_sensitivity: 90", result.stdout)
+        self.assertIn("PASS course_workload_summary: 3", result.stdout)
+        self.assertIn("PASS course_top5: 15", result.stdout)
         self.assertIn("PASS course_workload_distribution: 63", result.stdout)
+
+    def test_course_workload_summary_total_requests_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "workload_summary.csv"
+        fields, rows = read_csv(path)
+        rows[0]["total_requests"] = str(int(rows[0]["total_requests"]) + 1)
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "total_requests differs"):
+            self._audit_course_copy(root)
+
+    def test_course_workload_summary_bytes_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "workload_summary.csv"
+        fields, rows = read_csv(path)
+        rows[0]["total_requested_bytes"] = str(int(rows[0]["total_requested_bytes"]) + 1)
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "total_requested_bytes differs"):
+            self._audit_course_copy(root)
+
+    def test_course_workload_summary_threshold_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "workload_summary.csv"
+        fields, rows = read_csv(path)
+        rows[0]["requests_larger_than_5120KiB"] = str(int(rows[0]["requests_larger_than_5120KiB"]) + 1)
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "requests_larger_than_5120KiB differs"):
+            self._audit_course_copy(root)
+
+    def test_course_workload_summary_distinct_resources_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "workload_summary.csv"
+        fields, rows = read_csv(path)
+        rows[0]["distinct_resources"] = str(int(rows[0]["distinct_resources"]) + 1)
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "distinct_resources differs"):
+            self._audit_course_copy(root)
+
+    def test_course_top5_requests_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "workload_top5.csv"
+        fields, rows = read_csv(path)
+        rows[0]["requests"] = str(int(rows[0]["requests"]) + 1)
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "workload_top5: requests differs"):
+            self._audit_course_copy(root)
+
+    def test_course_top5_share_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "workload_top5.csv"
+        fields, rows = read_csv(path)
+        rows[0]["share"] = "0.0"
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "workload_top5: share differs"):
+            self._audit_course_copy(root)
+
+    def test_course_h_sensitivity_value_tampering_is_rejected(self):
+        root = self._copy_course()
+        path = root / "course" / "course_h_sensitivity.csv"
+        fields, rows = read_csv(path)
+        rows[0]["average_response_ms"] = "0.0"
+        write_csv(path, fields, rows)
+        with self.assertRaisesRegex(ValueError, "course_h_sensitivity: average_response_ms differs"):
+            self._audit_course_copy(root)
 
     def test_course_manifest_tampering_is_rejected(self):
         root = self._copy_course()
