@@ -1,6 +1,6 @@
 # 工作负载与批量实验设计
 
-关联 [#11](https://github.com/xuzheluo0516-bit/capstone-cache-simulator/issues/11) 和 [#12](https://github.com/xuzheluo0516-bit/capstone-cache-simulator/issues/12)。生成数据置于 `data/generated/`，批量结果置于 `data/experiments/`；教授给出的 `data/reference/` 文件保持原样。
+关联 [#11](https://github.com/xuzheluo0516-bit/capstone-cache-simulator/issues/11) 和 [#12](https://github.com/xuzheluo0516-bit/capstone-cache-simulator/issues/12)。生成数据置于 `data/generated/`，可重建的跑批产物置于 `data/experiments/`，已提交的正式结果置于 `data/results/`；教授给出的 `data/reference/` 文件保持原样。
 
 ## 资源集与容量
 
@@ -19,7 +19,7 @@
 
 每类默认生成 72、360、1440 条请求（`small`、`medium`、`large`）。时间戳从固定 UTC 起点逐秒递增，方法为 GET，CSV 六列与真实请求输入一致。每个条件的随机流由总种子、类型和规模确定；相同配置与种子产生逐字节相同的资源与请求 CSV。`*_metadata.json` 记录生成命令、种子、请求数、客户端数、资源大小及活跃资源总大小。
 
-调参专用输入使用**种子 `31415`**，生成到 `data/tuning/`；**这是调参用，不参与正式结果**。正式实验预定五个种子：`20261111`、`20261112`、`20261113`、`20261114`、`20261115`。调参后固定策略参数，再用五个正式种子运行，不依据正式结果重新选参。
+调参专用输入使用**种子 `31415`**，生成到 `data/tuning/`；**这是调参用，不参与正式结果**。正式实验使用五个种子：`20261111`、`20261112`、`20261113`、`20261114`、`20261115`。调参后固定策略参数，再用五个正式种子运行，不依据正式结果重新选参。
 
 ```bash
 python -m cache_simulator.workloads --output-dir data/tuning --seed 31415
@@ -38,13 +38,13 @@ python -m cache_simulator.workloads --output-dir data/loop --seed 31415 --includ
 - 结果：请求命中率、字节命中率、平均响应时间、源站流量、逐客户端命中率与平均响应时间，以及逐请求事件。保存资源/请求哈希与代码标识，以便复核图表来源。
 
 
-一条命令先生成全部输入，随后按负载、容量、策略跑批。**同一负载和容量的所有策略读取同一对 CSV**，每轮新建策略、引擎和指标累加器，从空缓存开始，全部请求都纳入统计，不做预热。命中延迟默认 5 ms。默认比较 FIFO、LRU、LFU、GDSF、CUSTOM；在 D 的策略注册 PR 合入运行基线前，默认运行会明确报缺失策略。可用 `--policies FIFO LRU LFU` 验证框架，但不能把三策略试跑称为正式五策略结果。
+批量实验沿用 **同一负载和容量下所有策略读取同一对 CSV**、每轮从空缓存开始、所有请求计入统计、命中延迟 5 ms 的约定。FIFO、LRU、LFU、GDSF、CUSTOM 均已注册。`cache_simulator.experiments` 是早期批量框架；正式的调参、五策略主实验、公平性、消融、漂移与绘图统一使用 `d_experiments/run_all.py`。
 
 ```bash
 python -m cache_simulator.experiments --output-dir data/experiments/seed-20261111 --seed 20261111
 ```
 
-正式实验对其余四个种子逐一重复该命令，输出目录与种子一一对应。默认每个种子有 **3 类负载 × 3 个规模 × 5 档容量 × 5 个策略 = 225 次运行**，五个种子共 1125 次；运行前须确认五个策略已注册。
+上面的命令仅供早期框架回归。正式主实验固定使用 `large` 规模，每个种子 **3 类负载 × 5 档容量 × 5 个策略 = 75 次运行**，五个正式种子共 375 次。运行 `python d_experiments/run_all.py` 可依次生成调参、主实验、公平性、消融、漂移和图表，默认输出到忽略的 `data/experiments/run_all/`，不会覆盖已提交的 `data/results/`。
 
 ### 已做的验收检查
 
@@ -54,4 +54,4 @@ python -m cache_simulator.experiments --output-dir data/experiments/seed-2026111
 
 输出包括每轮十列原始 `events/*.csv`、总体 `summary.csv`、逐客户端 `clients.csv` 和 `manifest.json`。清单写明计划/完成次数、配置、精确容量、种子、输入文件与 SHA-256、代码 Git SHA（若可用）及源代码 SHA-256、Python/包版本、策略参数与每轮状态。默认策略参数为空对象；若自定义策略有构造参数，可用 `--policy-parameters-json params.json` 传入如 `{"CUSTOM": {"weight": 0.5}}`，清单会记录实际参数。失败记录错误并以非零退出码停止，不静默缺失结果。指标不变量检查包括请求、客户端和字节守恒；引擎和指标模块检查容量上限。每次运行覆盖现有 #8 指标，结果可用输入哈希和事件文件追溯。
 
-正式解释策略优劣前仍需确认 #9 的参考验证及 #10 中 RW-CSF/GDSF 的实现、注册和验证。这些依赖不阻止生成器与跑批结构先行评审。
+正式结果与输入/代码的独立审计见 [results-audit.md](results-audit.md)，可供报告使用的方法文字见 [report-experiment-method.md](report-experiment-method.md)。已提交的 `data/results/` 与可重建的 `data/experiments/` 应按审计文档中的归档边界分别处理。
