@@ -33,9 +33,16 @@ def load_requests(workload):
 
 
 def reference_run(policy, workload, capacity):
-    """Independent FIFO/LRU/LFU simulator written from the course text only."""
+    """Independent simulator for all five policies.
+
+    FIFO/LRU/LFU are written from the course text. GDSF and RW-CSF are written
+    from their definitions (docs/custom-policy-design.md), with the decayed
+    count computed as an explicit sum over the access history instead of the
+    incremental update the policy classes use.
+    """
     catalog = load_catalog()
-    cache = {}  # key -> [insert_step, last_step, count]
+    cache = {}  # key -> [insert_step, last_step, count, access_steps, K]
+    inflation = 0.0  # GDSF's L
     used = hits = hit_bytes = origin = evictions = oversized = 0
     total_ms = 0.0
     util = 0.0
@@ -51,6 +58,9 @@ def reference_run(policy, workload, capacity):
             total_ms += 5.0
             cache[key][1] = step
             cache[key][2] += 1
+            cache[key][3].append(step)
+            gain = max(latency - 5.0, 0.0)
+            cache[key][4] = inflation + cache[key][2] * gain / size
         else:
             total_ms += latency
             origin += size
@@ -60,12 +70,21 @@ def reference_run(policy, workload, capacity):
                         victim = min(cache, key=lambda k: cache[k][0])
                     elif policy == "LRU":
                         victim = min(cache, key=lambda k: cache[k][1])
-                    else:  # LFU, ties -> least recently used
+                    elif policy == "LFU":  # ties -> least recently used
                         victim = min(cache, key=lambda k: (cache[k][2], cache[k][1]))
+                    elif policy == "GDSF":  # K = L + F * dT / s; ties -> LRU, then key
+                        victim = min(cache, key=lambda k: (cache[k][4], cache[k][1], k))
+                    else:  # CUSTOM = RW-CSF, H = 20: P = (sum 2^-(n-n_j)/H) * dT / s
+                        def priority(k):
+                            decayed = sum(2.0 ** (-(step - n_j) / 20.0) for n_j in cache[k][3])
+                            return decayed * max(catalog[k][1] - 5.0, 0.0) / catalog[k][0]
+                        victim = min(cache, key=lambda k: (priority(k), cache[k][1], k))
+                    if policy == "GDSF":
+                        inflation = cache[victim][4]
                     used -= catalog[victim][0]
                     del cache[victim]
                     evictions += 1
-                cache[key] = [step, step, 1]
+                cache[key] = [step, step, 1, [step], inflation + max(latency - 5.0, 0.0) / size]
                 used += size
         util += used / capacity
     n = len(requests)
@@ -92,10 +111,20 @@ class CourseRunTests(unittest.TestCase):
         self.assertEqual(len({(r["workload"], r["capacity_KiB"], r["policy"]) for r in self.runs}), 90)
         self.assertIn("5120", {r["capacity_KiB"] for r in self.runs})   # 5 MiB
 
-    def test_standard_policies_match_an_independent_simulator(self):
+    def test_all_policies_match_an_independent_simulator(self):
         for r in self.runs:
-            if r["policy"] not in ("FIFO", "LRU", "LFU"):
-                continue
+            ref = reference_run(r["policy"], r["workload"], int(r["capacity_KiB"]) * 1024)
+            label = (r["workload"], r["capacity_KiB"], r["policy"])
+            for field in ("hits", "origin_bytes", "evictions", "oversized_requests"):
+                self.assertEqual(int(r[field]), ref[field], (label, field))
+            for field in ("average_response_ms", "avg_cache_utilization",
+                          "request_hit_rate", "byte_hit_rate"):
+                self.assertAlmostEqual(float(r[field]), ref[field], places=9, msg=(label, field))
+
+    def test_committed_course_runs_match_independent_simulator(self):
+        committed = read(ROOT / "data" / "results" / "course" / "course_runs.csv")
+        self.assertEqual(len(committed), 90)
+        for r in committed:
             ref = reference_run(r["policy"], r["workload"], int(r["capacity_KiB"]) * 1024)
             label = (r["workload"], r["capacity_KiB"], r["policy"])
             for field in ("hits", "origin_bytes", "evictions", "oversized_requests"):

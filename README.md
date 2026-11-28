@@ -150,7 +150,7 @@ make experiments-small
 .\make.ps1 experiments-small
 ```
 
-`data/results/` 是已提交的正式结果（27 个 tracked 文件），不是 scratch 目录；`data/experiments/` 是可重建的运行产物，已被 `.gitignore` 忽略，**不进入最终 ZIP**。正式结果与 scratch 输出必须分开保存。
+`data/results/` 是已提交的正式结果（41 个 tracked 文件，含 `data/results/course/` 的课程 trace 结果），不是 scratch 目录；`data/experiments/` 是可重建的运行产物，已被 `.gitignore` 忽略，**不进入最终 ZIP**。正式结果与 scratch 输出必须分开保存。
 
 ### 命令行入口
 

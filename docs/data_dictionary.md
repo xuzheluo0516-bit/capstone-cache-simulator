@@ -265,7 +265,7 @@ Byte counts are exact integers unless the column name says otherwise.
 `capacity_KiB` is `capacity_bytes / 1024`.
 
 The committed result set contains the aggregated tables, the manifests, and
-the six PNG figures. Per-seed `summary.csv`, `clients.csv`, `events/`, and
+the twelve PNG figures (six for the synthetic experiments, six `course_*.png` for the course traces). Per-seed `summary.csv`, `clients.csv`, `events/`, and
 generated input files are reproducible working files and are not all
 committed. The paths below use the layout written by `d_experiments/run_all.py`.
 

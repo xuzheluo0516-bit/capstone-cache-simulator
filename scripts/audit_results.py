@@ -10,6 +10,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 
@@ -84,6 +85,109 @@ def audit_grid(path: Path, expected: set[tuple], fields: tuple[str, ...]) -> int
     return len(actual)
 
 
+COURSE_WORKLOADS = ("sequential", "repetitive", "mixed")
+COURSE_POLICIES = ("FIFO", "LRU", "LFU", "GDSF", "CUSTOM")
+COURSE_CAPACITIES_KIB = (100, 500, 1024, 2048, 5120, 10240)
+COURSE_H_VALUES = ("5", "20", "100", "500", "inf")
+COURSE_CLIENTS = tuple(f"student-0{i}" for i in range(1, 7))
+
+
+def audit_course_distribution(course: Path, repo: Path) -> int:
+    """Audit workload_distribution.csv against resources and request traces."""
+    catalog = {
+        f"{r['host']}{r['path']}": int(r["size_bytes"])
+        for r in rows(repo / "data" / "reference" / "resources.csv")
+    }
+    expected = {(w, resource) for w in COURSE_WORKLOADS for resource in catalog}
+    distribution = rows(course / "workload_distribution.csv")
+    actual = [(r["workload"], r["resource"]) for r in distribution]
+    require(len(actual) == len(set(actual)), f"{course / 'workload_distribution.csv'}: duplicate rows")
+    require(len(actual) == 63, f"{course / 'workload_distribution.csv'}: expected 63 rows")
+    require(set(actual) == expected, f"{course / 'workload_distribution.csv'}: grid differs")
+
+    request_counts: dict[tuple[str, str], int] = {}
+    for workload in COURSE_WORKLOADS:
+        trace = rows(repo / "data" / "reference" / f"requests_{workload}.csv")
+        require(len(trace) == 3000, f"{workload}: expected 3000 requests")
+        for request in trace:
+            key = (workload, f"{request['host']}{request['path']}")
+            request_counts[key] = request_counts.get(key, 0) + 1
+
+    for row in distribution:
+        key = (row["workload"], row["resource"])
+        require(row["resource"] in catalog, f"unknown resource: {row['resource']}")
+        require(int(row["size_bytes"]) == catalog[row["resource"]], f"size differs: {key}")
+        require(int(row["requests"]) == request_counts.get(key, 0), f"request count differs: {key}")
+    for workload in COURSE_WORKLOADS:
+        require(sum(int(r["requests"]) for r in distribution if r["workload"] == workload) == 3000,
+                f"{workload}: distribution request total differs")
+    return len(distribution)
+
+
+def audit_course(root: Path, repo: Path, experiment_hash: str, core_hash: str) -> dict[str, int]:
+    """Audit data/results/course: manifest, input hashes, source hashes and table grids."""
+    course = root / "course"
+    d = read_json(course / "manifest.json")
+    require(d.get("status") == "complete" and d.get("exploratory") is False, "course manifest: not a complete formal run")
+    require(d.get("planned_runs") == d.get("completed_runs") == 90 and d.get("failed_runs") == 0, "course manifest: run count differs")
+    require(tuple(d.get("workloads", ())) == COURSE_WORKLOADS and tuple(d.get("policies", ())) == COURSE_POLICIES, "course manifest: workloads or policies differ")
+    require(tuple(d.get("capacities_KiB", ())) == COURSE_CAPACITIES_KIB and d.get("standard_capacity_KiB") == 5120, "course manifest: capacities differ")
+    require(d.get("half_life") == 20.0 and d.get("hit_latency_ms") == 5.0, "course manifest: H or hit latency differs")
+    for field in ("source_sha256", "experiment_source_sha256", "course_source_sha256"):
+        require(bool(HASH.fullmatch(str(d.get(field, "")))), f"course manifest: invalid {field}")
+    require(d["source_sha256"] == core_hash, "course manifest: core source hash differs from the audited tree")
+    require(d["experiment_source_sha256"] == experiment_hash, "course manifest: experiment source hash differs from the audited tree")
+    require(d["course_source_sha256"] == source_hash(repo / "d_experiments" / "course"), "course manifest: course script hash differs")
+    for name, recorded in d.get("input_sha256", {}).items():
+        actual = hashlib.sha256((repo / "data" / "reference" / name).read_bytes()).hexdigest()
+        require(actual == recorded, f"course manifest: input {name} differs from the committed file")
+    require(set(d.get("input_sha256", {})) == {"resources.csv", *(f"requests_{w}.csv" for w in COURSE_WORKLOADS)}, "course manifest: input list differs")
+    caps = {str(c) for c in COURSE_CAPACITIES_KIB}
+    out = {}
+    out["course_runs"] = audit_grid(course / "course_runs.csv", {(w, c, p) for w in COURSE_WORKLOADS for c in caps for p in COURSE_POLICIES}, ("workload", "capacity_KiB", "policy"))
+    out["course_clients"] = audit_grid(course / "course_clients.csv", {(w, c, p, k) for w in COURSE_WORKLOADS for c in caps for p in COURSE_POLICIES for k in COURSE_CLIENTS}, ("workload", "capacity_KiB", "policy", "client_id"))
+    out["course_fairness"] = audit_grid(course / "course_fairness.csv", {(w, c, p) for w in COURSE_WORKLOADS for c in caps for p in COURSE_POLICIES}, ("workload", "capacity_KiB", "policy"))
+    out["course_h_sensitivity"] = audit_grid(course / "course_h_sensitivity.csv", {(w, c, h) for w in COURSE_WORKLOADS for c in caps for h in COURSE_H_VALUES}, ("workload", "capacity_KiB", "half_life"))
+    out["course_workload_summary"] = audit_grid(course / "workload_summary.csv", {(w,) for w in COURSE_WORKLOADS}, ("workload",))
+    out["course_top5"] = audit_grid(course / "workload_top5.csv", {(w, str(k)) for w in COURSE_WORKLOADS for k in range(1, 6)}, ("workload", "rank"))
+    out["course_workload_distribution"] = audit_course_distribution(course, repo)
+
+    client_groups: dict[tuple[str, str, str], list[dict[str, str]]] = {}
+    for client in rows(course / "course_clients.csv"):
+        key = (client["workload"], client["capacity_KiB"], client["policy"])
+        client_groups.setdefault(key, []).append(client)
+    for r in rows(course / "course_runs.csv"):
+        key = (r["workload"], r["capacity_KiB"], r["policy"])
+        members = client_groups.get(key, [])
+        require(len(members) == len(COURSE_CLIENTS), f"course_runs: client count differs for {key}")
+        total_requests = sum(int(c["requests"]) for c in members)
+        total_hits = sum(int(c["hits"]) for c in members)
+        require(int(r["requests"]) == total_requests, f"course_runs: client requests differ for {key}")
+        require(int(r["hits"]) == total_hits, f"course_runs: client hits differ for {key}")
+        require(int(r["hits"]) + int(r["misses"]) == int(r["requests"]) == 3000, f"course_runs: hits + misses != 3000 for {key}")
+        weighted_ms = sum(int(c["requests"]) * float(c["average_response_ms"]) for c in members) / total_requests
+        require(math.isclose(float(r["average_response_ms"]), weighted_ms, rel_tol=0, abs_tol=1e-9),
+                f"course_runs: average_response_ms differs for {key}")
+        require(math.isclose(float(r["request_hit_rate"]), total_hits / total_requests, rel_tol=0, abs_tol=1e-9),
+                f"course_runs: request_hit_rate differs for {key}")
+
+    for f in rows(course / "course_fairness.csv"):
+        key = (f["workload"], f["capacity_KiB"], f["policy"])
+        members = client_groups.get(key, [])
+        require(len(members) == len(COURSE_CLIENTS), f"course_fairness: client count differs for {key}")
+        rates = [float(c["request_hit_rate"]) for c in members]
+        squares = sum(rate * rate for rate in rates)
+        require(squares > 0, f"course_fairness: all-zero client hit rates for {key}")
+        jain = sum(rates) ** 2 / (len(rates) * squares)
+        require(math.isclose(float(f["jain"]), jain, rel_tol=0, abs_tol=1e-9),
+                f"course_fairness: Jain differs for {key}")
+        worst = max(members, key=lambda c: (float(c["average_response_ms"]), c["client_id"]))
+        require(f["worst_client_id"] == worst["client_id"], f"course_fairness: worst client differs for {key}")
+        require(math.isclose(float(f["worst_client_ms"]), float(worst["average_response_ms"]), rel_tol=0, abs_tol=1e-9),
+                f"course_fairness: worst-client latency differs for {key}")
+    return out
+
+
 def audit(root: Path) -> dict[str, int]:
     out = {}
     versions = set()
@@ -112,6 +216,7 @@ def audit(root: Path) -> dict[str, int]:
     repo = root.parent.parent
     require(source_hash(repo / "src" / "cache_simulator") == recorded_core, "core source hash differs from manifests")
     require(source_hash(repo / "d_experiments") == recorded_experiment, "experiment source hash differs from manifests")
+    out.update(audit_course(root, repo, recorded_experiment, recorded_core))
     choice = read_json(root / "h-tuning" / "h_choice.json")
     require(choice.get("seed") == 31415 and choice.get("chosen_half_life") == 20, "tuning choice differs")
     caps = {str(float(c // 1024)) for c in CAPACITIES}

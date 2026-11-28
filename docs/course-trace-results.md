@@ -93,7 +93,7 @@ mixed 里大小感知策略占优;两个视频使字节命中率很低、源站�
 | mixed | 10M | **141.3** | **141.3** | **141.3** | **141.3** | **141.3** |
 
 图:`course_response_time_vs_capacity.png`、`course_hit_rate_vs_capacity.png`、`course_evictions_vs_capacity.png`。
-mixed 在 1 MiB 时 GDSF 与 RW-CSF 相同(取一位小数);repetitive 在 100 KiB 时所有策略相差不到 0.5%。
+mixed 在 1 MiB 时 GDSF 与 RW-CSF 相同(取一位小数);repetitive 在 100 KiB 时最快与最慢的策略相差约 0.7%(205.2 对 206.6 ms)。
 
 ### 4.3 对各客户端的影响(mixed,5 MiB)
 图:`course_per_client_mixed_5MiB.png`;数据:`course_clients.csv`、`course_fairness.csv`。
@@ -160,6 +160,12 @@ H=∞(不衰减)在 mixed 和 repetitive 上甚至略好于 GDSF。这说明:
   大文件被先淘汰,但字节命中率并没有因此提高(见各表)。
 - **超大资源如何影响命中率和字节命中率?** 它们每次都是未命中且不占缓存,拉低命中率上限
   (sequential 有 9.6%、mixed 7.8%、repetitive 1.7% 的请求永远不可能命中),并使字节命中率远低于请求命中率。
+
+## 验证
+`tests/test_course_traces.py` 里有一个独立重写的模拟器:FIFO、LRU、LFU 按课程文字写成,GDSF 和 RW-CSF 按定义写成,
+其中 RW-CSF 的衰减频率用访问历史的显式求和计算(策略类里是增量更新)。它在全部 90 个(负载、容量、策略)组合上,
+命中数、源站流量、淘汰次数、超大请求数、平均响应时间、平均缓存利用率、命中率和字节命中率都与实验结果一致。
+`scripts/audit_results.py` 现在也审计 `data/results/course/`(manifest、输入文件哈希、源码哈希、各表的完整性)。
 
 ## 7. 局限
 - trace 固定,没有重复运行,所以没有标准差和显著性检验;约 1% 以内的差距不能解读。
